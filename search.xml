@@ -1,0 +1,986 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>Sharding | 数据分片策略：分片键和分片算法的选择</title>
+    <url>/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/</url>
+    <content><![CDATA[<blockquote>
+<p>摘要：规划分片策略的过程需要考虑较多的问题，本文简单地概括了分片键应具有的特性，以及常见分片算法的特点。</p>
+</blockquote>
+<p><img src="/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/20221016-1-Sharding01.png" alt="20221016-1-Sharding01">Sharding 作为海量存储高并发沙场中的制胜利器，制定合理的 Sharding 策略会为系统提供强有力的性能保障，选择合适的分片键和分片算法，是分片策略规划中的重要工作。<strong>由于业务特点各不相同，分片键和分片算法的选择没有绝对统一的模板。</strong></p>
+<span id="more"></span>
+<p>本文聚焦于分片键和分片算法话题，因此这里不再展开 Sharding 的概念，对于多数业务场景，分库分表的规划方案回顾如下：</p>
+<ul>
+<li><strong>数据量大，选分表；</strong></li>
+<li><strong>并发高，选分库；</strong></li>
+<li><strong>海量存储+高并发，分库+分表。</strong></li>
+</ul>
+<p><strong>何时去分表？</strong></p>
+<p>当潜意识里有要做分表的想法时，您当前或许遇到了单表过大、数据检索慢以及业务抱怨等问题，需要对系统进行优化。业内关于“单表过千万”、“数百 G”则需要分表的说法，其实不完全准确。以 MySQL 为例，生产中单表数千万记录并不是个例，它没有那么脆弱，合理的架构设计也可有效提升数据检索压力，如优化索引、历史数据归档、引入缓存方案以及启用读写分离策略等。</p>
+<p>当数据量激增，以上优化方案均不奏效时，那么是时候请“分表”出场了，单片容量无固定限制，结合测试结果，满足效率和预留空间需求即可。<strong>分表的时机不取决于经验之谈，而是取决于业务效率</strong>。</p>
+<p><strong>何时去分库？</strong></p>
+<p>分表概念外，还有一个概念是分库，也总是有朋友会纠结，我到底是否需要分库。分库的底层逻辑是，通过多台服务器来承接更多的业务流量，给系统提供更多的连接支持。因此，对于一个并发不高的系统，我们通过分表解决数据量大的问题即可，无需分库。如果业务发展迅猛，现有架构难以支撑更多的用户，则要考虑去做分库。可按照业务模块进行分库，也可以对大表进行跨库拆分。<strong>分库解决的是高并发的需求</strong>。</p>
+<p><strong>分库+分表</strong></p>
+<p>分库分表即分布式数据库解决方案，它<strong>解决了海量数据高并发业务场景下，单体数据库的计算效率、存储容量及扩展问题</strong>。</p>
+<p>Sharding 定位为利器的同时，它也存在一定的使用门槛，需要放弃一些数据库原生支持的能力，取舍由业务情况而定。由于 Sharding 相对复杂的特点，<strong>选择合适的分片键和分片策略，是分布式改造良好开端必不可少的两要素</strong>。</p>
+<h1 id="如何选择分片键（Sharding-Key）"><a href="#如何选择分片键（Sharding-Key）" class="headerlink" title="如何选择分片键（Sharding Key）"></a>如何选择分片键（Sharding Key）</h1><p>分片键也称为 <strong>Sharding key</strong>，是数据库拆分时的关键字段，我更愿把它理解为<strong>“锚点”</strong>，每一条数据都有自己的一个锚点，在对数据做 Sharding 的过程中，数据锚点的选择至关重要，直接影响我们对数据分而治之的效率。</p>
+<p>关于分片键的选择，我们需要<strong>选择具有共性的字段是最基本的要求，也是就尽量能覆盖绝大多数查询场景</strong>。同时分片键也应具有足够庞大的基数以及唯一性，从而使 Shard 可<strong>灵活规划</strong>，具备较好的扩展性。举个反例，如果选取布尔类型的字段为分片键，那么分片最多只能存在两份，这就陷入了非常尴尬的局面，基本失去了 Sharding 的意义。</p>
+<h2 id="分片键的选择建议"><a href="#分片键的选择建议" class="headerlink" title="分片键的选择建议"></a>分片键的选择建议</h2><ol>
+<li>选择具有共性的字段作为分片键，即查询中高频出现的条件字段；</li>
+<li>分片字段应具有高度离散的特点，分片键的内容不能被更新；</li>
+<li>可均匀各分片的数据存储和读写压力，避免片内出现热点数据；</li>
+<li>尽量减少单次查询所涉及的分片数量，降低数据库压力；</li>
+<li>最后，不要更换分片键，更换分片键需重分布数据，代价较大。</li>
+</ol>
+<h2 id="基因法-冗余数据"><a href="#基因法-冗余数据" class="headerlink" title="基因法+冗余数据"></a>基因法+冗余数据</h2><p>这里来思考一个在超大规模的电商场景中，使用订单 ID 和买家 ID 查询数据的问题。大规模电商场景每日会产生海量的交易订单，在这个场景中，我们选择使用订单 ID 作为分片键是一个没有异议的选择。那么此时，我们通过 APP 来查询自己的订单时，查询条件变为了分片键之外的买家 ID，默认情况下，查询语句中不带有分片键会导致全路由情况。面对这样的情况，应如何设计一个高效的分片策略？</p>
+<p>大厂常常使用的方案是基因法，即<strong>将买家 ID 融入到订单 ID 中，作为订单 ID 后缀</strong>。这样，指定买家的所有订单就会与其订单在同一分片内了，如下图所示。</p>
+<p><img src="/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/20221016-1-Sharding02.png" alt="基因法"></p>
+<blockquote>
+<p>最终订单 ID：原始订单 ID+买家 ID % 100 –&gt;20221016150810789<strong>01</strong></p>
+</blockquote>
+<p>本文的编写时间是 2022 年 10 月中旬，当前淘宝订单编号是 19 位数字，如果现在方便看下您的淘宝的订单，会发现所有订单编号后 6 位是完全一样的，这正是使用基因法分片键的方案。</p>
+<p>最后再加一个问题，电商场景除了订单和买家外，还有一个高频条件是卖家 ID，如果想按照卖家 ID 查询数据又该如何处理？</p>
+<p>可以考虑做数据冗余的方案，即广播表（或克隆表）技术，在每个片上都存有一份相同的卖家数据，用空间换取效率。对于超大规模的电商场景，使用基因法+冗余数据的方案即可处理绝大部分订单、买家和卖家的请求。对于其他检索条件以及大型卖家的场景，补充参考如下。</p>
+<ol>
+<li>对于检索条件不包含订单 ID、买家 ID 和 卖家 ID 的查询，使用 ES 方案解决；</li>
+<li>对于大型卖家的数据，可规划单独的库&#x2F;表，或进一步拆分映射成多个虚拟商家，来避免热点。</li>
+</ol>
+<h1 id="分片算法"><a href="#分片算法" class="headerlink" title="分片算法"></a>分片算法</h1><p>常见分片算法如 Hash、Range 和 List，用户也可以组合使用，或考虑结合业务定制分片算法。分片是为了让请求检索较少的数据和承载更多的流量，因此<strong>访问流量可均分、数据处理可并行、热点数据能规避</strong>，是比较理想的分片。在海量数据库高并发场景中，使用相对较多的分片算法是 Hash。</p>
+<ul>
+<li><p><strong>Hash</strong></p>
+<p>在海量数据库高并发的 OLTP 业务中，选择 Hash 算法相对更合适，它会将数据相对均匀的分布在各分片中，可有效规避热点问题。</p>
+<p>虽然 Hash 方案成为多数场景中被青睐的方案，但跨片操作和分片扩缩容是 Hash 需面对的挑战。</p>
+</li>
+<li><p><strong>Range</strong></p>
+<p>按照字段的取值范围对数据进行分片，对于范围条件的数据检索有较高的性能优势，基于 Range 的分片扩容也非常容易。</p>
+<p>在分布式架构中，Range 相对 Hash 没有那么通用化，热点问题是最大的劣势，它适合数据体量较大且并发不高的场景，比如离线检索。</p>
+</li>
+<li><p><strong>List</strong></p>
+<p>对于需要枚举值的业务场景中，List 算法是合适的选择，如基于地区或基于币种的业务，数据有明确的存储位置，单片失效不会影响全局业务。显而易见的是无法避免热点问题。</p>
+</li>
+</ul>
+<p>三种分片算法特点总结如下表。</p>
+<table>
+<thead>
+<tr>
+<th align="center"></th>
+<th align="center">分片算法</th>
+<th align="center">优势</th>
+<th align="center">劣势</th>
+<th align="center">适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">1</td>
+<td align="center">Hash</td>
+<td align="center">数据分布均匀<br>流量访问均匀</td>
+<td align="center">跨片效率低<br>分片扩容难</td>
+<td align="center">在线，数据量大且并发高</td>
+</tr>
+<tr>
+<td align="center">2</td>
+<td align="center">Range<br></td>
+<td align="center">高效范围查询<br>分片扩容简单</td>
+<td align="center">数据热点问题</td>
+<td align="center">离线，数据量大且并发少</td>
+</tr>
+<tr>
+<td align="center">3</td>
+<td align="center">List</td>
+<td align="center">数据可用性高<br>分片扩容简单<br></td>
+<td align="center">数据热点问题</td>
+<td align="center">适用枚举值类型的业务场景</td>
+</tr>
+</tbody></table>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>规划分片策略的过程需要考虑较多的问题，本文只是在皮毛层面进行了概括。回到开篇，分片策略的规划<strong>不能脱离业务</strong>，它没有统一的模板。理想的分片策略应尽量满足<strong>访问流量可均分、数据处理可并行、热点数据能规避</strong>。最后，总结一张脑图供参考。</p>
+<p><img src="/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/20221016-1-Sharding03.png" alt="分片策略"></p>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><p><a href="https://time.geekbang.org/column/article/217568?utm_source=related_read&utm_medium=article&utm_term=related_read">[1] 李玥. MySQL存储海量数据的最后一招：分库分表. 2020.</a></p>
+<p><a href="https://mp.weixin.qq.com/s/WffHugBp8tZtmPxcI6tcBw">[2] 韩锋. 小白入门，如何选择数据分片字段. 2022.</a></p>
+<p><a href="https://www.bilibili.com/video/BV1rG4y1W7s9/?spm_id_from=0.0.header_right.history_list.click&vd_source=7ad99b8f04cc31bfc1c6509a18c58cde">[3] 程序员囧辉. 日千万级的订单系统分库分表核心内容. 2022.</a></p>
+<p><a href="https://mp.weixin.qq.com/s/Bwwf-brPCmtDMBtdsfWmdA">[4] 初八,JefferyXin. 干货 | 支持10X增长，携程机票订单库Sharding实践. 2022.</a></p>
+]]></content>
+      <tags>
+        <tag>Sharding</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>初识 GDPR：史上最严格的数据保护条例</title>
+    <url>/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/</url>
+    <content><![CDATA[<p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p0.png" alt="p0.png"></p>
+<h1 id="1-什么是-GDPR？"><a href="#1-什么是-GDPR？" class="headerlink" title="1 什么是 GDPR？"></a>1 什么是 GDPR？</h1><p><strong>GDPR</strong> 全称是 General Data Protection Regulation，译为<strong>《通用数据保护条例》</strong>，是欧盟 2016 年通过的条例，于 2018 年 5 月 25 日正式生效，旨在保护欧盟居民隐私，GDPR 详情见 <a href="https://gdpr-info.eu/">https://gdpr-info.eu/</a>。</p>
+<p>GDPR 面向所有<strong>收集、处理、储存、管理欧盟公民个人数据</strong>的企业，限制了这些企业收集与处理用户个人信息的权限，将个人信息的最终控制权交还给用户本人，凡涉及欧盟个人数据的行为，都可被 GDPR 所管辖。在个人数据保护方面，GDPR 是目前全球规定最为严格、处罚最为严厉的法规之一。</p>
+<p>GDPR 取代了欧盟在 1995 年推出的欧盟《数据保护指令》（又称“95 指令”），相比 95 指令，<strong>GDPR 增加了优化数据流向欧盟以外国家的管理办法，以及增强用户对其个人信息的控制</strong>。</p>
+<span id="more"></span>
+<p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p1.png" alt="p1.png"></p>
+<h1 id="2-GDPR-中需要关注的概念"><a href="#2-GDPR-中需要关注的概念" class="headerlink" title="2 GDPR 中需要关注的概念"></a>2 GDPR 中需要关注的概念</h1><p>GDPR 以最大的限度保护了欧盟公民的个人信息安全，<strong>在 GDPR 面前，可以说我们所能想到的擦边球操作以及常见的文字游戏基本都是苍白无力的</strong>，比如描述不够直白、关键声明内容位置不明显，导致用户没有清楚隐私政策，那就是服务商的问题。因此对于 GDPR 相关的定义，比如“个人信息”的范围等此类信息，相关组织需要严格按照 GDPR 中的规定进行执行，下面列出了一些初次了解 GDPR 需要关注的概念。</p>
+<p>建议参考原文定义描述：<a href="https://gdpr-info.eu/art-4-gdpr/">https://gdpr-info.eu/art-4-gdpr/</a></p>
+<h2 id="个人信息"><a href="#个人信息" class="headerlink" title="个人信息"></a>个人信息</h2><p><strong>个人信息，PII</strong>(Personal Identifiable Information)，指任何指向一个已被识别或可被识别的自然人的信息。该自然人能够被<strong>直接</strong>或<strong>间接</strong>地识别。</p>
+<ul>
+<li><strong>直接标识</strong>：能够直接识别出自然人的信息，如：姓名、身份证号等。</li>
+<li><strong>间接标识</strong>：通过参照针对该自然人一个或多个如物理、生理、遗传、心理、经济、文化或社会身份的要素识别出自然人的信息。</li>
+</ul>
+<h2 id="敏感信息"><a href="#敏感信息" class="headerlink" title="敏感信息"></a>敏感信息</h2><ul>
+<li>禁止处理显示种族或民族血统、政治意见、宗教或哲学信仰或工会成员身份的个人数据，以及处理遗传数据、用于唯一识别自然人身份的生物测定数据、有关健康的数据或有关自然人的性生活或性取向的数据。禁止收集处理种族起源、政治意见、宗教或者哲学信仰、商会会员、基因、生物特征、健康状况、性生活等事项的特殊类别的个人数据。</li>
+</ul>
+<h2 id="管辖范围"><a href="#管辖范围" class="headerlink" title="管辖范围"></a>管辖范围</h2><ul>
+<li>数据控制者、数据处理者<strong>在欧盟有营业场所</strong>的，不论数据处理行为发生在欧盟还是境外。</li>
+<li>数据控制者、数据库处理者<strong>未在欧盟设立营业场所</strong>，但向欧盟的数据主体提供商品或者服务，或者被追踪的网络行为发生在欧盟的。</li>
+<li>虽然数据控制者、数据处理者未在欧盟设立营业场所，但是根据国际公法应当使用欧盟成员国法律的。第二种情形是典型的域外管辖，主要针对美国的互联网企业。</li>
+</ul>
+<h2 id="处罚规定"><a href="#处罚规定" class="headerlink" title="处罚规定"></a>处罚规定</h2><ul>
+<li>一般违法：罚款<strong>上限是 1000 万欧元</strong>，或者在承诺的情况下，最高为上一个财政年度**全球全年营业收入的 2%**（两者中取数额大者）。</li>
+<li>严重违法：罚款<strong>上限是 2000 万欧元</strong>，或者在承诺的情况下，最高为上一个财政年度**全球全年营业收入的 4%**（两者中取数额大者）。</li>
+</ul>
+<h2 id="获取用户同意（Consent）"><a href="#获取用户同意（Consent）" class="headerlink" title="获取用户同意（Consent）"></a>获取用户同意（Consent）</h2><ul>
+<li>如果用户的同意是一个包含其他事项的书面声明中作出的，则该书面说明中的同意请求应当<strong>具有明显的辨识度</strong>以便可以与其他事项区别，使用清楚、直白的语言，以<strong>容易理解且容易获取</strong>的方式呈现，否则视为无效。</li>
+<li>用户有权随时撤回其同意，同意的撤回不具有溯及以往的效力；同意的撤回应当和同意的作出一样容易。</li>
+<li>当<strong>儿童至少 16 岁</strong>时，其同意才可以是处理其个人数据的合法条件；如果儿童不满 16 岁，则只有当其监护人作出授权或者同意时，处理其个人数据才是合法的。</li>
+</ul>
+<h2 id="个人数据的收集、处理规则"><a href="#个人数据的收集、处理规则" class="headerlink" title="个人数据的收集、处理规则"></a>个人数据的收集、处理规则</h2><ol>
+<li><strong>用户为了一个或者多个明确目的，同意处理其个人数据。</strong></li>
+<li>为了履行用户与企业之间的合同必须处理其个人数据，或者为了基于用户请求而签订合同必须处理其个人数据。</li>
+<li>处理行为对于企业遵守其所负担的法律义务是必要的。</li>
+<li>处理个人数据是为了保护该用户或者其他自然人的重大利益。</li>
+<li>处理个人数据是为了公共利益。</li>
+<li>处理行为对于企业或者第三方所追求的<strong>合法利益</strong>目的是必要的，除非该利益屈从于需要保护其个人数据的自然人的立业或者基本权利和自由，尤其是当其是儿童时。</li>
+</ol>
+<h2 id="数据处理的七个原则"><a href="#数据处理的七个原则" class="headerlink" title="数据处理的七个原则"></a>数据处理的七个原则</h2><ol>
+<li><strong>合法、公平、透明原则</strong>。</li>
+<li><strong>目的限定原则</strong>：出于特定、明确、合法的目的收集个人数据，进一步处理不得有悖于前述目的，除非符合公共利益、科学研究等正当目的。</li>
+<li>数据<strong>最小化原则</strong>：所收集、处理的个人数据之于其处理目的，应当准确、相关、必要。</li>
+<li><strong>准确原则</strong>：确保个人数据是准确的，并在必要的情况下及时更新。</li>
+<li><strong>有限留存原则</strong>：除非符合公共利益、科学研究等正当目的，否则对个人数据的留存期限不能超过其处理目的。</li>
+<li><strong>完整、机密原则</strong>：用技术手段确保个人数据的安全，不被非法处理、窃取、损毁等。</li>
+<li><strong>责任原则</strong>：数据控制者应当对上述原则的落实情况承担责任并予以证明。</li>
+</ol>
+<h2 id="数据主体的八项权利"><a href="#数据主体的八项权利" class="headerlink" title="数据主体的八项权利"></a>数据主体的八项权利</h2><ol>
+<li>知情权（Right to be informed）</li>
+<li>访问权（Right of access）</li>
+<li>更正权（Right to rectfication）</li>
+<li>删除权（或“被遗忘权”，Right to erasure,or “right to be forgotten”）</li>
+<li>限制处理权（Right to restrcition of processing）</li>
+<li>可携带权（或迁移权，Right to data portability）</li>
+<li>反对权（Right to object）</li>
+<li>不受制于自动化决策（含画像）（Right not to be subject to automated decision-making,include profiling）</li>
+</ol>
+<h1 id="3-国内企业的合规驱动力"><a href="#3-国内企业的合规驱动力" class="headerlink" title="3 国内企业的合规驱动力"></a>3 国内企业的合规驱动力</h1><h2 id="内因"><a href="#内因" class="headerlink" title="内因"></a>内因</h2><ul>
+<li>海外业务扩张：全球化业务发展，扩展到欧盟市场。</li>
+<li>欧盟业务举足轻重：有一定的市场占有率，不考虑放弃欧盟的市场。</li>
+<li>竞争需要：行业内部的 PK，不放弃每一个抢占市场的机会。</li>
+</ul>
+<h2 id="外因"><a href="#外因" class="headerlink" title="外因"></a>外因</h2><ul>
+<li>国家层面的相关因素：大型国有企业在海外往往会成为监管的重点，避免信誉危机。</li>
+<li>欧盟合作伙伴要求：作为欧盟伙伴供应链的一环，同样需要符合 GDPR 的要求。</li>
+</ul>
+<h1 id="4-GDPR-落地流程参考表"><a href="#4-GDPR-落地流程参考表" class="headerlink" title="4 GDPR 落地流程参考表"></a>4 GDPR 落地流程参考表</h1><p>在企业 GDPR 合规过程中，不同部门会面临很多的执行问题，如<strong>法务</strong>侧会关注当前隐私政策是否符合要求？<strong>业务</strong>侧会关注哪些数据将不能再收集了？是否会影响业务效率？<strong>IT</strong> 侧会关注数据加密技术方案如何落地？以及暂时达不到要求的方面是否有折中方案？<strong>合规牵头方</strong>则会关注如何理出重点？以及如何引起高层重视并获得支持？等问题。</p>
+<p>以上具体的问题均可归纳到 GDPR 落地的九个阶段中，如下表。</p>
+<blockquote>
+<p>注：参考表概括了不同阶段需要关注的内容，它不是对法律的解释，也不是对 GDPR 规定的管制员或处理者的义务范围的解释，每一阶段背后都有更多细节值得研究。因此，<strong>应根据 GDPR 中描述的全部义务，以确认每个问题的合规情况。</strong></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1. 数据隐私影响评估（DPIA）阶段<br></td>
+<td>DPIA（Data Privacy Impact Assessment）有助于识别隐私风险并将其降至最低。与业务和合作伙伴组织中的利益相关者合作，记录个人数据处理如何符合 GDPR。在高风险情况下，GDPR 需要 DPIA。</td>
+</tr>
+<tr>
+<td>2. 个人数据清单确认阶段</td>
+<td>评估您有哪些个人数据以及这些数据存储在哪里。通过进行个人数据清点，您可以清楚地了解组织中使用的个人数据。</td>
+</tr>
+<tr>
+<td>3. 数据流分析阶段</td>
+<td>确定所有触及 GDPR 范围内数据的系统。绘制从入口到销毁的数据流，包括第三方流程。当您对组织的完整数据生命周期有了深入的了解时，数据映射可以帮助您确保适当地揭示所有风险。</td>
+</tr>
+<tr>
+<td>4. 风险评估阶段</td>
+<td>针对每个数据（包括数据库、文件系统和人员）的接触点的执行风险进行评估。您将评估当前的数据保护策略和流程，以及实施这些策略和程序的技术控制措施。例如，您是否有适当的控制措施来执行 GDPR 的跨境数据传输要求？确定风险较高的区域以及需要采取哪些措施来降低风险。</td>
+</tr>
+<tr>
+<td>5. 数据泄露过程审查阶段</td>
+<td>评估您的程序和控制，用以检测、报告和调查数据泄露。GDPR 对数据控制者和处理者提出了违规通知要求。例如，数据控制员必须在意识到违规行为后 72 小时内向监管当局报告违规行为，除非违规行为不太可能导致对自然人的权利和自由造成风险。</td>
+</tr>
+<tr>
+<td>6. 确定差距和补救计划阶段</td>
+<td>确定您将如何补救在风险评估中检测到的任何合规漏洞。确定风险较高且应首先解决的差距的优先顺序。补救计划可以包括：培训或招聘员工、流程或政策更改、法律合同以及实施新的技术控制。</td>
+</tr>
+<tr>
+<td>7. 批准预期结果阶段</td>
+<td>展示您的分析结果以及推荐的解决方案，以获得项目的支持和预算。您应该在项目的预期结果上得到管理层的认可和批准。</td>
+</tr>
+<tr>
+<td>8. 实施改进和补救计划阶段</td>
+<td>使用经过验证的实施方法执行项目，该方法包括定义、设计和实施阶段。</td>
+</tr>
+<tr>
+<td>9. 治理阶段（持续问责和 DPIA）</td>
+<td>建立流程以进行持续的 DPIA，并通过测试确保持续的合规性。最终形成体系化、平台化和自动化的治理手段。</td>
+</tr>
+</tbody></table>
+<h1 id="5-处罚案例统计"><a href="#5-处罚案例统计" class="headerlink" title="5 处罚案例统计"></a>5 处罚案例统计</h1><p>截止 2022 年 6 月 10 日，867 个企业&#x2F;组织&#x2F;个人共计被处罚 1200 次。从 2018 年开始，处罚次数逐年增加，2021 年处罚次数到达最高 455 次，可以预见 2022 年可能超 2021 年。</p>
+<h2 id="处罚金额最高的公司：亚马逊（欧洲）"><a href="#处罚金额最高的公司：亚马逊（欧洲）" class="headerlink" title="处罚金额最高的公司：亚马逊（欧洲）"></a>处罚金额最高的公司：亚马逊（欧洲）</h2><p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p2.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p2.png"></p>
+<p>（数据来源：欧洲各国 DPA 公开出发公告）</p>
+<p>以上单笔罚款均超过 2 千万欧元，IT 企业居多，其中亚马逊（欧洲）的处罚金额最高，达 7 亿欧元。</p>
+<h2 id="处罚金额最高的产业：工业和商业"><a href="#处罚金额最高的产业：工业和商业" class="headerlink" title="处罚金额最高的产业：工业和商业"></a>处罚金额最高的产业：工业和商业</h2><p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p3.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p3.png"><br>（数据来源：欧洲各国 DPA 公开出发公告）</p>
+<h2 id="被处罚次数最多的企业：Vodafone-Espana"><a href="#被处罚次数最多的企业：Vodafone-Espana" class="headerlink" title="被处罚次数最多的企业：Vodafone Espana"></a>被处罚次数最多的企业：Vodafone Espana</h2><p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p4.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p4.png"><br>（数据来源：欧洲各国 DPA 公开出发公告）</p>
+<p>15 个实体被处罚超过（含）5 次，76 个实体被处罚超过（含）2 次。其中 Vodafone Espana, S.A.U 被处罚次数最多，高达 46 次。其次是 Xfera Moviles S.A. 被处罚 16 次。</p>
+<h2 id="最易被处罚的违规行为统计"><a href="#最易被处罚的违规行为统计" class="headerlink" title="最易被处罚的违规行为统计"></a>最易被处罚的违规行为统计</h2><p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p5.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p5.png"><br>不论违法次数还是违法类型，不符合一般数据处理原则和数据处理的法律依据不足，均排在前 2 位。</p>
+<h2 id="最凶的-DPA-Data-Protection-Authority"><a href="#最凶的-DPA-Data-Protection-Authority" class="headerlink" title="最凶的 DPA(Data Protection Authority)"></a>最凶的 DPA(Data Protection Authority)</h2><p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p6.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p6.png"></p>
+<p>处罚金额排名第 1 的卢森堡 7.463 亿欧元，其中 7.46 亿罚款来自 Amazon。法国处罚 Google 共 4 次 2 亿欧元，Facebook 共 1 次 0.6 亿欧元，处罚金额 2.697 亿欧元排名第 2。</p>
+<p>处罚次数最多的的是西班牙，共 424 次，其次是意大利。</p>
+<h1 id="6-FAQ"><a href="#6-FAQ" class="headerlink" title="6 FAQ"></a>6 FAQ</h1><p>从以上内容来看，GDPR 既复杂又严格。为在短时间内进一步理解 GDPR，网络上收集了一些常见的问题如下。</p>
+<ol>
+<li><p><strong>因为 GDPR 的生效，相关服务商将不能再收集用户隐私数据了吗？</strong></p>
+<p> 不是的。在需遵循数据处理的七个原则前提下，服务商仍然可以收集用户隐私数据。</p>
+</li>
+<li><p><strong>公司注册在国内，GDPR 对公司有什么影响吗？</strong></p>
+<p> 需判断业务数据是否包含欧洲公民的数据。GDPR 要求所有<strong>设在欧洲的组织</strong>以及<strong>与欧洲利益相关的组织</strong>遵守其规定。GDPR是一个复杂的、全面的法规，它影响到组织内部的许多领域。由于这种复杂性，建议进行GDPR审计，以确保符合性，并防止对违规行为的严厉处罚。</p>
+<p> GDPR 适用于：1）在欧盟境内成立的任何一家从事个人数据处理活动的公司或实体，无论其数据处理活动是否发生在欧盟境内；或者 2）在欧盟境外成立的公司，只要其数据处理活动与向欧盟境内的个体提供产品或服务（不论是否收费）有关，或其数据处理行为涉及到监控欧盟境内个体的行为。</p>
+</li>
+<li><p><strong>GDPR 审计的好处有哪些？</strong></p>
+<p> 除了避免罚款、处罚和负面宣传外，成功的审计还提供了符合 GDPR 准则的文件证明。审计还可以改进和优化与组织内个人数据保护相关的流程。</p>
+</li>
+<li><p><strong>GDPR 合规自查大概包括哪些内容？</strong></p>
+<p> 主要是通过客观分析，来确定组织是否合规，以及如何满足 GDPR 要求。审查的领域包括正在处理的数据的性质、所进行的行业和活动类型、员工数量及其与数据保护相关的特征以及公司的组织和 IT 工具。</p>
+</li>
+<li><p><strong>GDPR 是否适用于公司相关的数据？</strong></p>
+<p> 不适用。这些规则仅适用于个体的个人数据，不涉及公司或任何其他法律实体的数据。但是，仅有一人的公司，其信息可构成个人数据，用于识别自然人。</p>
+</li>
+<li><p><strong>GDPR 是否适用于中小企业？</strong></p>
+<p> 适用。 <strong>数据保护条例的适用范围不取决于公司或机构的规模，而取决于其业务性质。</strong> 无论是由中小企业还是大公司进行对个人的权利和自由造成高风险的活动，都适用于更严格的规则。但是，GDPR 的某些义务可能不适用于所有中小企业。</p>
+<p> 例如，<strong>员工人数少于 250 人</strong>的公司，除非处理个人数据是主要业务，且对个人的权利和自由构成威胁，或涉及敏感数据或犯罪记录，否则<strong>无需保存数据处理记录</strong>。同样，对于任何中小企业，如果数据处理是其主要业务，特别是大规模数据处理会对个人的权利和自由（例如监控个人或处理敏感数据或犯罪记录）构成特殊威胁时，需要任命一名 <strong>数据保护官</strong> 。</p>
+</li>
+<li><p><strong>是否可以将数据用于「其他目的」？</strong></p>
+<p> 可以，但只有在某些情况下。如果您所在的公司或机构基于<strong>合法利益、合同</strong>或<strong>切身利益</strong>收集数据，则可在确认<strong>新目的与初始目的相符</strong>后，可将其用于其他目的。</p>
+<p> 如果您所在的公司或机构在<strong>征得数据主体同意后或按照法律要求</strong>进行了数据收集，则数据处理不得超出同意或法律规定所涵盖的范围。如需进行进一步处理，则必须重新征得数据主体的同意或获得新的法律依据。</p>
+</li>
+<li><p><strong>是否可以将数据用于「任何目的」？</strong></p>
+<p> 不可以。必须确定处理个人数据的目的，且必须通知数据主体。不得以暗示的方式告知个人数据会被收集和处理。这被称为“目的限制”原则。</p>
+</li>
+</ol>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>数据库安全与合规是一项长期的任务，想要深入理解 GDPR 并完成合规整改，并非一蹴而就。人力、时间和金钱均需投入，在理想的情况下，合规、运营效益和营收利润这三方面应是一个正三角形的状态，既合规，又不会给运营效果和利润营收带来过多的压力。</p>
+<p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p7.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p7.png"></p>
+<h1 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h1><p><a href="https://gdpr-info.eu/">[1] General Data Protection Regulation. 2016.</a></p>
+<p><a href="https://mp.weixin.qq.com/s/d-A4zpTEWt6xiH34vCWr0g">[2] 杨满月. 一文读懂 GDPR. 2021.</a></p>
+<p><a href="https://dl.ccf.org.cn/video/videoDetail.html?id=5531122079533068">[3] 黄思维. GDPR 与中国企业的合规新实践. 2018.</a></p>
+<p><a href="https://www.bilibili.com/video/BV1fq4y1b78Z/?spm_id_from=333.1007.top_right_bar_window_history.content.click&vd_source=7ad99b8f04cc31bfc1c6509a18c58cde">[4] PunCha Fen. 从程序员角度看 GDPR. 2022. </a></p>
+<p><a href="https://www.imperva.com/resources/wp-content/uploads/sites/6/ebooks/Imperva_GuidetoGDPRCompliance_06192020.pdf">[5] Imperva. The Road to Compliance: Steps for Securing Data to Comply with the GDPR. 2020.</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/38014002">[6] 伊夏. 欧盟《通用数据保护条例》GDPR浅析. 2018.</a></p>
+<p><a href="https://www.bilibili.com/video/BV1LY4y1G76Y/?spm_id_from=333.1007.top_right_bar_window_history.content.click&vd_source=7ad99b8f04cc31bfc1c6509a18c58cde">[7] Liu Yu. GDPR 处罚案例统计. 2022.</a></p>
+<p><a href="https://dl.ccf.org.cn/article/articleDetail.html?type=xhtx_thesis&_ack=1&id=4672942986315776">[8] 毛得明，张位，郭得科. 关于《通用数据保护条例》的思考. 2019.</a></p>
+]]></content>
+      <tags>
+        <tag>数据安全</tag>
+        <tag>GDPR</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>ShardingSphere + MySQL 一主两从，静态读写分离配置演示</title>
+    <url>/2022/11/15/ShardingSphere-MySQL-%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E%EF%BC%8C%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE%E6%BC%94%E7%A4%BA/</url>
+    <content><![CDATA[<p>对于读写分离的概念，大家一定不会陌生。除了分库分表，Apache ShardingSphere 还有非常实用的读写分离能力，非常适用于读比例较高的业务场景中，可显著地提升系统吞吐上限。</p>
+<ul>
+<li><p>读写分离模式：</p>
+<ul>
+<li>静态读写分离：将主从节点 IP 信息注册到 ShardingSphere 中，ShardingSphere 不关注数据库节点状态变化，适用于一主一备，或使用了 VIP 的场景。</li>
+<li>动态读写分离：ShardingSphere 可自动感知数据库节点角色变化，数据库节点 failover 对业务透明，目前支持 MGR 架构。</li>
+</ul>
+</li>
+<li><p>从库的负载均衡策略：支持随机、轮询和权重策略。</p>
+</li>
+</ul>
+<p>下面通过一个「静态」读写分离的测试用例，进一步了解 Apache ShardingSphere 的读写分离能力。详细配置请参考官方文档<a href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/distsql/syntax/rdl/rule-definition/readwrite-splitting/">读写分离</a>配置章节。</p>
+<h1 id="测试目的"><a href="#测试目的" class="headerlink" title="测试目的"></a>测试目的</h1><p>基于 MySQL 一主两从复制架构，验证 Apache ShardingSphere 对数据库的静态读写分离能力。</p>
+<h1 id="预置条件"><a href="#预置条件" class="headerlink" title="预置条件"></a>预置条件</h1><ul>
+<li>ShardingSphere-Proxy 和 MySQL 集群（一主两从）正常运行，网络互通；</li>
+<li>MGR 集群中提前建好库，并准备测试表和若干测试记录用于测试；</li>
+<li>MySQL 开启 general log，便于通过日志信息确认语句真实执行情况。</li>
+</ul>
+<h1 id="网络拓扑"><a href="#网络拓扑" class="headerlink" title="网络拓扑"></a>网络拓扑</h1><h2 id="拓扑图"><a href="#拓扑图" class="headerlink" title="拓扑图"></a>拓扑图</h2><p><img src="/2022/11/15/ShardingSphere-MySQL-%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E%EF%BC%8C%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE%E6%BC%94%E7%A4%BA/%E6%8F%92%E5%9B%BE%E7%B4%A0%E6%9D%90-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB-20221113224736-u1wr4oy.png" alt="读写分离"></p>
+<span id="more"></span>
+<h2 id="版本说明"><a href="#版本说明" class="headerlink" title="版本说明"></a>版本说明</h2><ul>
+<li>ShardingSphere：5.2.1</li>
+<li>MySQL：8.0.28</li>
+</ul>
+<h1 id="预期结果"><a href="#预期结果" class="headerlink" title="预期结果"></a>预期结果</h1><ol>
+<li>ShardingSphere 具有读写分离能力，可在从库日志确认 <code>SELECT</code> 语句；</li>
+<li>多个读库节点具有负载均衡能力。</li>
+</ol>
+<h1 id="实操过程"><a href="#实操过程" class="headerlink" title="实操过程"></a>实操过程</h1><h2 id="1-构建集群"><a href="#1-构建集群" class="headerlink" title="1. 构建集群"></a>1. 构建集群</h2><p>在 ShardingSphere-Proxy 中注册 MGR 节点，完成集群构建。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"># mysql <span class="operator">-</span>uroot <span class="operator">-</span>p <span class="operator">-</span>h127<span class="number">.0</span><span class="number">.0</span><span class="number">.1</span> <span class="operator">-</span>P3307</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> DATABASE testdb;</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">0.05</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> DATABASES;</span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> schema_name        <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> shardingsphere     <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> information_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> performance_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> testdb             <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql              <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> sys                <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="number">6</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> USE testdb;</span><br><span class="line">Database changed</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">ADD</span> RESOURCE ds_0 (</span><br><span class="line">     URL<span class="operator">=</span>&quot;jdbc:mysql://192.168.56.103:3306/test?serverTimezone=UTC&amp;useSSL=false&quot;,</span><br><span class="line">     <span class="keyword">USER</span><span class="operator">=</span>&quot;test&quot;,</span><br><span class="line">     PASSWORD<span class="operator">=</span>&quot;Test@123&quot;,</span><br><span class="line">     PROPERTIES(&quot;maximumPoolSize&quot;<span class="operator">=</span>&quot;10&quot;,&quot;idleTimeout&quot;<span class="operator">=</span>&quot;30000&quot;)</span><br><span class="line">), ds_1 (</span><br><span class="line">     URL<span class="operator">=</span>&quot;jdbc:mysql://192.168.56.104:3306/test?serverTimezone=UTC&amp;useSSL=false&quot;,</span><br><span class="line">     <span class="keyword">USER</span><span class="operator">=</span>&quot;test&quot;,</span><br><span class="line">     PASSWORD<span class="operator">=</span>&quot;Test@123&quot;,</span><br><span class="line">     PROPERTIES(&quot;maximumPoolSize&quot;<span class="operator">=</span>&quot;10&quot;,&quot;idleTimeout&quot;<span class="operator">=</span>&quot;30000&quot;)</span><br><span class="line">), ds_2 (</span><br><span class="line">     URL<span class="operator">=</span>&quot;jdbc:mysql://192.168.56.105:3306/test?serverTimezone=UTC&amp;useSSL=false&quot;,</span><br><span class="line">     <span class="keyword">USER</span><span class="operator">=</span>&quot;test&quot;,</span><br><span class="line">     PASSWORD<span class="operator">=</span>&quot;Test@123&quot;,</span><br><span class="line">     PROPERTIES(&quot;maximumPoolSize&quot;<span class="operator">=</span>&quot;10&quot;,&quot;idleTimeout&quot;<span class="operator">=</span>&quot;30000&quot;)</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">1.68</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> DATABASE RESOURCES;</span><br><span class="line"><span class="operator">+</span><span class="comment">------+-------+----------------+------+------+---------------------------------+---------------------------+---------------------------+---------------+---------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> name <span class="operator">|</span> type  <span class="operator">|</span> host           <span class="operator">|</span> port <span class="operator">|</span> db   <span class="operator">|</span> connection_timeout_milliseconds <span class="operator">|</span> idle_timeout_milliseconds <span class="operator">|</span> max_lifetime_milliseconds <span class="operator">|</span> max_pool_size <span class="operator">|</span> min_pool_size <span class="operator">|</span> read_only <span class="operator">|</span> other_attributes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------+-------+----------------+------+------+---------------------------------+---------------------------+---------------------------+---------------+---------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_2 <span class="operator">|</span> MySQL <span class="operator">|</span> <span class="number">192.168</span><span class="number">.56</span><span class="number">.105</span> <span class="operator">|</span> <span class="number">3306</span> <span class="operator">|</span> test <span class="operator">|</span> <span class="number">30000</span>                           <span class="operator">|</span> <span class="number">30000</span>                     <span class="operator">|</span> <span class="number">2100000</span>                   <span class="operator">|</span> <span class="number">10</span>            <span class="operator">|</span> <span class="number">1</span>             <span class="operator">|</span> <span class="literal">false</span>     <span class="operator">|</span> &#123;&quot;dataSourceProperties&quot;:&#123;&quot;cacheServerConfiguration&quot;:&quot;true&quot;,&quot;elideSetAutoCommits&quot;:&quot;true&quot;,&quot;useServerPrepStmts&quot;:&quot;true&quot;,&quot;cachePrepStmts&quot;:&quot;true&quot;,&quot;rewriteBatchedStatements&quot;:&quot;true&quot;,&quot;cacheResultSetMetadata&quot;:&quot;false&quot;,&quot;useLocalSessionState&quot;:&quot;true&quot;,&quot;maintainTimeStats&quot;:&quot;false&quot;,&quot;prepStmtCacheSize&quot;:&quot;8192&quot;,&quot;tinyInt1isBit&quot;:&quot;false&quot;,&quot;prepStmtCacheSqlLimit&quot;:&quot;2048&quot;,&quot;netTimeoutForStreamingResults&quot;:&quot;0&quot;,&quot;zeroDateTimeBehavior&quot;:&quot;round&quot;&#125;,&quot;healthCheckProperties&quot;:&#123;&#125;,&quot;initializationFailTimeout&quot;:<span class="number">1</span>,&quot;validationTimeout&quot;:<span class="number">5000</span>,&quot;leakDetectionThreshold&quot;:<span class="number">0</span>,&quot;registerMbeans&quot;:<span class="literal">false</span>,&quot;allowPoolSuspension&quot;:<span class="literal">false</span>,&quot;autoCommit&quot;:<span class="literal">true</span>,&quot;isolateInternalQueries&quot;:<span class="literal">false</span>&#125; <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_1 <span class="operator">|</span> MySQL <span class="operator">|</span> <span class="number">192.168</span><span class="number">.56</span><span class="number">.104</span> <span class="operator">|</span> <span class="number">3306</span> <span class="operator">|</span> test <span class="operator">|</span> <span class="number">30000</span>                           <span class="operator">|</span> <span class="number">30000</span>                     <span class="operator">|</span> <span class="number">2100000</span>                   <span class="operator">|</span> <span class="number">10</span>            <span class="operator">|</span> <span class="number">1</span>             <span class="operator">|</span> <span class="literal">false</span>     <span class="operator">|</span> &#123;&quot;dataSourceProperties&quot;:&#123;&quot;cacheServerConfiguration&quot;:&quot;true&quot;,&quot;elideSetAutoCommits&quot;:&quot;true&quot;,&quot;useServerPrepStmts&quot;:&quot;true&quot;,&quot;cachePrepStmts&quot;:&quot;true&quot;,&quot;rewriteBatchedStatements&quot;:&quot;true&quot;,&quot;cacheResultSetMetadata&quot;:&quot;false&quot;,&quot;useLocalSessionState&quot;:&quot;true&quot;,&quot;maintainTimeStats&quot;:&quot;false&quot;,&quot;prepStmtCacheSize&quot;:&quot;8192&quot;,&quot;tinyInt1isBit&quot;:&quot;false&quot;,&quot;prepStmtCacheSqlLimit&quot;:&quot;2048&quot;,&quot;netTimeoutForStreamingResults&quot;:&quot;0&quot;,&quot;zeroDateTimeBehavior&quot;:&quot;round&quot;&#125;,&quot;healthCheckProperties&quot;:&#123;&#125;,&quot;initializationFailTimeout&quot;:<span class="number">1</span>,&quot;validationTimeout&quot;:<span class="number">5000</span>,&quot;leakDetectionThreshold&quot;:<span class="number">0</span>,&quot;registerMbeans&quot;:<span class="literal">false</span>,&quot;allowPoolSuspension&quot;:<span class="literal">false</span>,&quot;autoCommit&quot;:<span class="literal">true</span>,&quot;isolateInternalQueries&quot;:<span class="literal">false</span>&#125; <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_0 <span class="operator">|</span> MySQL <span class="operator">|</span> <span class="number">192.168</span><span class="number">.56</span><span class="number">.103</span> <span class="operator">|</span> <span class="number">3306</span> <span class="operator">|</span> test <span class="operator">|</span> <span class="number">30000</span>                           <span class="operator">|</span> <span class="number">30000</span>                     <span class="operator">|</span> <span class="number">2100000</span>                   <span class="operator">|</span> <span class="number">10</span>            <span class="operator">|</span> <span class="number">1</span>             <span class="operator">|</span> <span class="literal">false</span>     <span class="operator">|</span> &#123;&quot;dataSourceProperties&quot;:&#123;&quot;cacheServerConfiguration&quot;:&quot;true&quot;,&quot;elideSetAutoCommits&quot;:&quot;true&quot;,&quot;useServerPrepStmts&quot;:&quot;true&quot;,&quot;cachePrepStmts&quot;:&quot;true&quot;,&quot;rewriteBatchedStatements&quot;:&quot;true&quot;,&quot;cacheResultSetMetadata&quot;:&quot;false&quot;,&quot;useLocalSessionState&quot;:&quot;true&quot;,&quot;maintainTimeStats&quot;:&quot;false&quot;,&quot;prepStmtCacheSize&quot;:&quot;8192&quot;,&quot;tinyInt1isBit&quot;:&quot;false&quot;,&quot;prepStmtCacheSqlLimit&quot;:&quot;2048&quot;,&quot;netTimeoutForStreamingResults&quot;:&quot;0&quot;,&quot;zeroDateTimeBehavior&quot;:&quot;round&quot;&#125;,&quot;healthCheckProperties&quot;:&#123;&#125;,&quot;initializationFailTimeout&quot;:<span class="number">1</span>,&quot;validationTimeout&quot;:<span class="number">5000</span>,&quot;leakDetectionThreshold&quot;:<span class="number">0</span>,&quot;registerMbeans&quot;:<span class="literal">false</span>,&quot;allowPoolSuspension&quot;:<span class="literal">false</span>,&quot;autoCommit&quot;:<span class="literal">true</span>,&quot;isolateInternalQueries&quot;:<span class="literal">false</span>&#125; <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------+-------+----------------+------+------+---------------------------------+---------------------------+---------------------------+---------------+---------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="number">3</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.32</span> sec)</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="2-创建静态读写分离规则"><a href="#2-创建静态读写分离规则" class="headerlink" title="2. 创建静态读写分离规则"></a>2. 创建静态读写分离规则</h2><p>配置静态读写分离的规则相对简单，只需要在 <code>WRITE_RESOURCE</code> 和 <code>READ_RESOURCES</code> 两个参数中填入对应的读和写的数据源即可，<code>TYPE</code> 对应的是<a href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/common-config/builtin-algorithm/load-balance/">负载均衡算法</a>，这里配置为 <code>random</code>。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> READWRITE_SPLITTING RULE static_rwp_rule (</span><br><span class="line">WRITE_RESOURCE<span class="operator">=</span>ds_0,</span><br><span class="line">READ_RESOURCES(ds_1,ds_2),</span><br><span class="line">TYPE(NAME<span class="operator">=</span>&quot;random&quot;)</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">2.87</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> READWRITE_SPLITTING RULES\G</span><br><span class="line"><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span> <span class="number">1.</span> <span class="type">row</span> <span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span></span><br><span class="line">                           name: static_rwp_rule</span><br><span class="line">    auto_aware_data_source_name:</span><br><span class="line">write_data_source_query_enabled:</span><br><span class="line">         write_data_source_name: ds_0</span><br><span class="line">         read_data_source_names: ds_1,ds_2</span><br><span class="line">             load_balancer_type: random</span><br><span class="line">            load_balancer_props:</span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+
+<p>到这里已经完成了静态读写分离策略的配置，下面进入到验证配置的环节。</p>
+<h2 id="3-验证读写分离配置"><a href="#3-验证读写分离配置" class="headerlink" title="3. 验证读写分离配置"></a>3. 验证读写分离配置</h2><p>有多种方法可以确认 SQL 路由，这里采用通过 ShardingSphere 以及 MySQL general log 方式来确认。</p>
+<h3 id="3-1-通过-ShardingSphere-Prxoy-确认"><a href="#3-1-通过-ShardingSphere-Prxoy-确认" class="headerlink" title="3.1 通过 ShardingSphere-Prxoy 确认"></a>3.1 通过 ShardingSphere-Prxoy 确认</h3><p>在 ShardingSphere-Prxoy 中，在查询语句前加 <code>PREVIEW</code> 命令即可查看执行路由。这种验证方式，SQL 不会在数据库中真实执行。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> TABLES;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------+</span></span><br><span class="line"><span class="operator">|</span> Tables_in_testdb <span class="operator">|</span> Table_type <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------+</span></span><br><span class="line"><span class="operator">|</span> t1               <span class="operator">|</span> BASE <span class="keyword">TABLE</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t1 <span class="keyword">VALUES</span>(<span class="number">2</span>,<span class="string">&#x27;DaiYe&#x27;</span>);</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                       <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_0             <span class="operator">|</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t1 <span class="keyword">VALUES</span>(<span class="number">2</span>,<span class="string">&#x27;DaiYe&#x27;</span>) <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.07</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql       <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_2             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.08</span> sec)</span><br></pre></td></tr></table></figure>
+
+<p> 从以上输出信息来看，<code>INSERT</code> 请求由 ds_0 处理，<code>SELECT</code> 请求由 ds_2 处理。在负载均衡策略中，上面已经配置了 random 策略，下面进行验证。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql       <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_2             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql       <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_2             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql       <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_1             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql       <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_1             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql       <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_2             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql       <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_1             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql       <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_2             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql       <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_2             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-通过-MySQL-general-log-确认"><a href="#3-2-通过-MySQL-general-log-确认" class="headerlink" title="3.2 通过 MySQL general log 确认"></a>3.2 通过 MySQL general log 确认</h3><p>这种方式适合在测试环境进行验证，期间会产生大量日志信息，验证后务必及时关闭该功能。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="comment">-- 查看 general log 状态和日志位置</span></span><br><span class="line"><span class="keyword">SHOW</span> VARIABLES <span class="keyword">LIKE</span> <span class="string">&#x27;%general_log%&#x27;</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 开启</span></span><br><span class="line"><span class="keyword">SET</span> <span class="keyword">GLOBAL</span> general_log <span class="operator">=</span> <span class="keyword">on</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 关闭</span></span><br><span class="line"><span class="keyword">SET</span> <span class="keyword">GLOBAL</span> general_log <span class="operator">=</span> off;</span><br></pre></td></tr></table></figure>
+
+<p>下面在 ShardingSphere-Proxy 中执行 SQL，验证路由情况。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t1 <span class="keyword">VALUES</span>(<span class="number">2</span>,<span class="string">&#x27;DaiYe&#x27;</span>);</span><br><span class="line">Query OK, <span class="number">1</span> <span class="type">row</span> affected (<span class="number">0.01</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">----+-------+</span></span><br><span class="line"><span class="operator">|</span> c1 <span class="operator">|</span> c2    <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----+-------+</span></span><br><span class="line"><span class="operator">|</span>  <span class="number">1</span> <span class="operator">|</span> Tank  <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span>  <span class="number">2</span> <span class="operator">|</span> DaiYe <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----+-------+</span></span><br><span class="line"><span class="number">2</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">----+-------+</span></span><br><span class="line"><span class="operator">|</span> c1 <span class="operator">|</span> c2    <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----+-------+</span></span><br><span class="line"><span class="operator">|</span>  <span class="number">1</span> <span class="operator">|</span> Tank  <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span>  <span class="number">2</span> <span class="operator">|</span> DaiYe <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----+-------+</span></span><br><span class="line"><span class="number">2</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1;</span><br><span class="line"><span class="operator">+</span><span class="comment">----+-------+</span></span><br><span class="line"><span class="operator">|</span> c1 <span class="operator">|</span> c2    <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----+-------+</span></span><br><span class="line"><span class="operator">|</span>  <span class="number">1</span> <span class="operator">|</span> Tank  <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span>  <span class="number">2</span> <span class="operator">|</span> DaiYe <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----+-------+</span></span><br><span class="line"><span class="number">2</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>MySQL general log 中输出信息如下。</p>
+<p>ds_0 日志：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="number">2022</span><span class="number">-11</span><span class="number">-13</span>T14:<span class="number">30</span>:<span class="number">13.784662</span>Z	   <span class="number">42</span> Query	<span class="keyword">INSERT</span> <span class="keyword">INTO</span> t1 <span class="keyword">VALUES</span>(<span class="number">2</span>,<span class="string">&#x27;DaiYe&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>ds_1 日志：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="number">2022</span><span class="number">-11</span><span class="number">-13</span>T14:<span class="number">30</span>:<span class="number">18.492112</span>Z	   <span class="number">42</span> Query	<span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1</span><br><span class="line"><span class="number">2022</span><span class="number">-11</span><span class="number">-13</span>T14:<span class="number">30</span>:<span class="number">19.356047</span>Z	   <span class="number">42</span> Query	<span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1</span><br><span class="line"><span class="number">2022</span><span class="number">-11</span><span class="number">-13</span>T14:<span class="number">30</span>:<span class="number">20.321698</span>Z	   <span class="number">42</span> Query	<span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1</span><br></pre></td></tr></table></figure>
+
+<p>ds_2 日志：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="number">2022</span><span class="number">-11</span><span class="number">-13</span>T14:<span class="number">30</span>:<span class="number">19.368517</span>Z	   <span class="number">38</span> Query	<span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t1</span><br></pre></td></tr></table></figure>
+
+<p>INSERT 语句在写节点（ds_0）中完成，读节点（ds_1 和 ds_2）中完成，与预期一致，测试完成。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ol>
+<li>静态读写分离配置相对简单，填写对应的数据源信息及负载均衡策略即可；</li>
+<li>静态配置满足了读写数据源映射配置，由于固定的数据源配置不具备 failover 能力，如写数据源发生宕机，此时业务将不可写，因此结合 VIP 方案使用会更为合适。</li>
+</ol>
+]]></content>
+      <tags>
+        <tag>ShardingSphere</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>ShardingSphere + MySQL 构建 Sharding+读写分离集群</title>
+    <url>/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/</url>
+    <content><![CDATA[<p>前一篇文章介绍了 <a href="http://daiyex.com/2022/11/15/ShardingSphere-MySQL-%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E%EF%BC%8C%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE%E6%BC%94%E7%A4%BA/">MySQL 静态读写分离</a>的配置，那么面对 Sharding+ 读写分离组合使用的场景，该如何去配置？下面内容记录了操作过程，我们通过 ShardingSphere-Proxy 和 4 个 MySQL 节点即可验证。</p>
+<h1 id="测试目的"><a href="#测试目的" class="headerlink" title="测试目的"></a>测试目的</h1><p>基于两组 MySQL 一主两从复制架构，验证 Apache ShardingSphere 的 Sharding + 静态读写分离组合能力。</p>
+<h1 id="预置条件"><a href="#预置条件" class="headerlink" title="预置条件"></a>预置条件</h1><ul>
+<li>ShardingSphere-Proxy 和 2 组 MySQL 集群（一主两从）正常运行，网络互通。</li>
+</ul>
+<h1 id="网络拓扑"><a href="#网络拓扑" class="headerlink" title="网络拓扑"></a>网络拓扑</h1><h2 id="拓扑图"><a href="#拓扑图" class="headerlink" title="拓扑图"></a>拓扑图</h2><p><img src="/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/Sharding+%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB.png" alt="Sharding+读写分离"></p>
+<span id="more"></span>
+<h2 id="版本说明"><a href="#版本说明" class="headerlink" title="版本说明"></a>版本说明</h2><ul>
+<li>ShardingSphere：5.2.1</li>
+<li>MySQL：8.0.28</li>
+</ul>
+<h1 id="预期结果"><a href="#预期结果" class="headerlink" title="预期结果"></a>预期结果</h1><p>Sharding + 读写分离能力可组合使用。</p>
+<h1 id="实操过程"><a href="#实操过程" class="headerlink" title="实操过程"></a>实操过程</h1><h2 id="1-构建集群"><a href="#1-构建集群" class="headerlink" title="1. 构建集群"></a>1. 构建集群</h2><p>在 ShardingSphere-Proxy 中创建逻辑库，注册 MGR 节点，完成集群构建。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"># mysql <span class="operator">-</span>uroot <span class="operator">-</span>p <span class="operator">-</span>h127<span class="number">.0</span><span class="number">.0</span><span class="number">.1</span> <span class="operator">-</span>P3307</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> DATABASE testdb;</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">0.05</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> DATABASES;</span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> schema_name        <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> shardingsphere     <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> information_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> performance_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> testdb             <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql              <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> sys                <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="number">6</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> USE testdb;</span><br><span class="line">Database changed</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">ADD</span> RESOURCE ds_0 (</span><br><span class="line">     URL<span class="operator">=</span>&quot;jdbc:mysql://192.168.56.103:3306/testdb0?serverTimezone=UTC&amp;useSSL=false&amp;allowPublicKeyRetrieval=true&quot;,</span><br><span class="line">     <span class="keyword">USER</span><span class="operator">=</span>&quot;test&quot;,</span><br><span class="line">     PASSWORD<span class="operator">=</span>&quot;Test@123&quot;,</span><br><span class="line">     PROPERTIES(&quot;maximumPoolSize&quot;<span class="operator">=</span>&quot;10&quot;,&quot;idleTimeout&quot;<span class="operator">=</span>&quot;30000&quot;)</span><br><span class="line">), ds_1 (</span><br><span class="line">     URL<span class="operator">=</span>&quot;jdbc:mysql://192.168.56.103:3306/testdb0?serverTimezone=UTC&amp;useSSL=false&amp;allowPublicKeyRetrieval=true&quot;,</span><br><span class="line">     <span class="keyword">USER</span><span class="operator">=</span>&quot;test&quot;,</span><br><span class="line">     PASSWORD<span class="operator">=</span>&quot;Test@123&quot;,</span><br><span class="line">     PROPERTIES(&quot;maximumPoolSize&quot;<span class="operator">=</span>&quot;10&quot;,&quot;idleTimeout&quot;<span class="operator">=</span>&quot;30000&quot;)</span><br><span class="line"></span><br><span class="line">), ds_2 (</span><br><span class="line">     URL<span class="operator">=</span>&quot;jdbc:mysql://192.168.56.104:3306/testdb1?serverTimezone=UTC&amp;useSSL=false&amp;allowPublicKeyRetrieval=true&quot;,</span><br><span class="line">     <span class="keyword">USER</span><span class="operator">=</span>&quot;test&quot;,</span><br><span class="line">     PASSWORD<span class="operator">=</span>&quot;Test@123&quot;,</span><br><span class="line">     PROPERTIES(&quot;maximumPoolSize&quot;<span class="operator">=</span>&quot;10&quot;,&quot;idleTimeout&quot;<span class="operator">=</span>&quot;30000&quot;)</span><br><span class="line">), ds_3 (</span><br><span class="line">     URL<span class="operator">=</span>&quot;jdbc:mysql://192.168.56.104:3306/testdb1?serverTimezone=UTC&amp;useSSL=false&amp;allowPublicKeyRetrieval=true&quot;,</span><br><span class="line">     <span class="keyword">USER</span><span class="operator">=</span>&quot;test&quot;,</span><br><span class="line">     PASSWORD<span class="operator">=</span>&quot;Test@123&quot;,</span><br><span class="line">     PROPERTIES(&quot;maximumPoolSize&quot;<span class="operator">=</span>&quot;10&quot;,&quot;idleTimeout&quot;<span class="operator">=</span>&quot;30000&quot;)</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">1.06</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> DATABASE RESOURCES;</span><br><span class="line"><span class="operator">+</span><span class="comment">------+-------+----------------+------+---------+---------------------------------+---------------------------+---------------------------+---------------+---------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> name <span class="operator">|</span> type  <span class="operator">|</span> host           <span class="operator">|</span> port <span class="operator">|</span> db      <span class="operator">|</span> connection_timeout_milliseconds <span class="operator">|</span> idle_timeout_milliseconds <span class="operator">|</span> max_lifetime_milliseconds <span class="operator">|</span> max_pool_size <span class="operator">|</span> min_pool_size <span class="operator">|</span> read_only <span class="operator">|</span> other_attributes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------+-------+----------------+------+---------+---------------------------------+---------------------------+---------------------------+---------------+---------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_3 <span class="operator">|</span> MySQL <span class="operator">|</span> <span class="number">192.168</span><span class="number">.56</span><span class="number">.104</span> <span class="operator">|</span> <span class="number">3306</span> <span class="operator">|</span> testdb1 <span class="operator">|</span> <span class="number">30000</span>                           <span class="operator">|</span> <span class="number">30000</span>                     <span class="operator">|</span> <span class="number">2100000</span>                   <span class="operator">|</span> <span class="number">10</span>            <span class="operator">|</span> <span class="number">1</span>             <span class="operator">|</span> <span class="literal">false</span>     <span class="operator">|</span> &#123;&quot;dataSourceProperties&quot;:&#123;&quot;cacheServerConfiguration&quot;:&quot;true&quot;,&quot;elideSetAutoCommits&quot;:&quot;true&quot;,&quot;useServerPrepStmts&quot;:&quot;true&quot;,&quot;cachePrepStmts&quot;:&quot;true&quot;,&quot;rewriteBatchedStatements&quot;:&quot;true&quot;,&quot;cacheResultSetMetadata&quot;:&quot;false&quot;,&quot;useLocalSessionState&quot;:&quot;true&quot;,&quot;maintainTimeStats&quot;:&quot;false&quot;,&quot;prepStmtCacheSize&quot;:&quot;8192&quot;,&quot;tinyInt1isBit&quot;:&quot;false&quot;,&quot;prepStmtCacheSqlLimit&quot;:&quot;2048&quot;,&quot;netTimeoutForStreamingResults&quot;:&quot;0&quot;,&quot;zeroDateTimeBehavior&quot;:&quot;round&quot;&#125;,&quot;healthCheckProperties&quot;:&#123;&#125;,&quot;initializationFailTimeout&quot;:<span class="number">1</span>,&quot;validationTimeout&quot;:<span class="number">5000</span>,&quot;leakDetectionThreshold&quot;:<span class="number">0</span>,&quot;registerMbeans&quot;:<span class="literal">false</span>,&quot;allowPoolSuspension&quot;:<span class="literal">false</span>,&quot;autoCommit&quot;:<span class="literal">true</span>,&quot;isolateInternalQueries&quot;:<span class="literal">false</span>&#125; <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_2 <span class="operator">|</span> MySQL <span class="operator">|</span> <span class="number">192.168</span><span class="number">.56</span><span class="number">.104</span> <span class="operator">|</span> <span class="number">3306</span> <span class="operator">|</span> testdb1 <span class="operator">|</span> <span class="number">30000</span>                           <span class="operator">|</span> <span class="number">30000</span>                     <span class="operator">|</span> <span class="number">2100000</span>                   <span class="operator">|</span> <span class="number">10</span>            <span class="operator">|</span> <span class="number">1</span>             <span class="operator">|</span> <span class="literal">false</span>     <span class="operator">|</span> &#123;&quot;dataSourceProperties&quot;:&#123;&quot;cacheServerConfiguration&quot;:&quot;true&quot;,&quot;elideSetAutoCommits&quot;:&quot;true&quot;,&quot;useServerPrepStmts&quot;:&quot;true&quot;,&quot;cachePrepStmts&quot;:&quot;true&quot;,&quot;rewriteBatchedStatements&quot;:&quot;true&quot;,&quot;cacheResultSetMetadata&quot;:&quot;false&quot;,&quot;useLocalSessionState&quot;:&quot;true&quot;,&quot;maintainTimeStats&quot;:&quot;false&quot;,&quot;prepStmtCacheSize&quot;:&quot;8192&quot;,&quot;tinyInt1isBit&quot;:&quot;false&quot;,&quot;prepStmtCacheSqlLimit&quot;:&quot;2048&quot;,&quot;netTimeoutForStreamingResults&quot;:&quot;0&quot;,&quot;zeroDateTimeBehavior&quot;:&quot;round&quot;&#125;,&quot;healthCheckProperties&quot;:&#123;&#125;,&quot;initializationFailTimeout&quot;:<span class="number">1</span>,&quot;validationTimeout&quot;:<span class="number">5000</span>,&quot;leakDetectionThreshold&quot;:<span class="number">0</span>,&quot;registerMbeans&quot;:<span class="literal">false</span>,&quot;allowPoolSuspension&quot;:<span class="literal">false</span>,&quot;autoCommit&quot;:<span class="literal">true</span>,&quot;isolateInternalQueries&quot;:<span class="literal">false</span>&#125; <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_1 <span class="operator">|</span> MySQL <span class="operator">|</span> <span class="number">192.168</span><span class="number">.56</span><span class="number">.103</span> <span class="operator">|</span> <span class="number">3306</span> <span class="operator">|</span> testdb0 <span class="operator">|</span> <span class="number">30000</span>                           <span class="operator">|</span> <span class="number">30000</span>                     <span class="operator">|</span> <span class="number">2100000</span>                   <span class="operator">|</span> <span class="number">10</span>            <span class="operator">|</span> <span class="number">1</span>             <span class="operator">|</span> <span class="literal">false</span>     <span class="operator">|</span> &#123;&quot;dataSourceProperties&quot;:&#123;&quot;cacheServerConfiguration&quot;:&quot;true&quot;,&quot;elideSetAutoCommits&quot;:&quot;true&quot;,&quot;useServerPrepStmts&quot;:&quot;true&quot;,&quot;cachePrepStmts&quot;:&quot;true&quot;,&quot;rewriteBatchedStatements&quot;:&quot;true&quot;,&quot;cacheResultSetMetadata&quot;:&quot;false&quot;,&quot;useLocalSessionState&quot;:&quot;true&quot;,&quot;maintainTimeStats&quot;:&quot;false&quot;,&quot;prepStmtCacheSize&quot;:&quot;8192&quot;,&quot;tinyInt1isBit&quot;:&quot;false&quot;,&quot;prepStmtCacheSqlLimit&quot;:&quot;2048&quot;,&quot;netTimeoutForStreamingResults&quot;:&quot;0&quot;,&quot;zeroDateTimeBehavior&quot;:&quot;round&quot;&#125;,&quot;healthCheckProperties&quot;:&#123;&#125;,&quot;initializationFailTimeout&quot;:<span class="number">1</span>,&quot;validationTimeout&quot;:<span class="number">5000</span>,&quot;leakDetectionThreshold&quot;:<span class="number">0</span>,&quot;registerMbeans&quot;:<span class="literal">false</span>,&quot;allowPoolSuspension&quot;:<span class="literal">false</span>,&quot;autoCommit&quot;:<span class="literal">true</span>,&quot;isolateInternalQueries&quot;:<span class="literal">false</span>&#125; <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_0 <span class="operator">|</span> MySQL <span class="operator">|</span> <span class="number">192.168</span><span class="number">.56</span><span class="number">.103</span> <span class="operator">|</span> <span class="number">3306</span> <span class="operator">|</span> testdb0 <span class="operator">|</span> <span class="number">30000</span>                           <span class="operator">|</span> <span class="number">30000</span>                     <span class="operator">|</span> <span class="number">2100000</span>                   <span class="operator">|</span> <span class="number">10</span>            <span class="operator">|</span> <span class="number">1</span>             <span class="operator">|</span> <span class="literal">false</span>     <span class="operator">|</span> &#123;&quot;dataSourceProperties&quot;:&#123;&quot;cacheServerConfiguration&quot;:&quot;true&quot;,&quot;elideSetAutoCommits&quot;:&quot;true&quot;,&quot;useServerPrepStmts&quot;:&quot;true&quot;,&quot;cachePrepStmts&quot;:&quot;true&quot;,&quot;rewriteBatchedStatements&quot;:&quot;true&quot;,&quot;cacheResultSetMetadata&quot;:&quot;false&quot;,&quot;useLocalSessionState&quot;:&quot;true&quot;,&quot;maintainTimeStats&quot;:&quot;false&quot;,&quot;prepStmtCacheSize&quot;:&quot;8192&quot;,&quot;tinyInt1isBit&quot;:&quot;false&quot;,&quot;prepStmtCacheSqlLimit&quot;:&quot;2048&quot;,&quot;netTimeoutForStreamingResults&quot;:&quot;0&quot;,&quot;zeroDateTimeBehavior&quot;:&quot;round&quot;&#125;,&quot;healthCheckProperties&quot;:&#123;&#125;,&quot;initializationFailTimeout&quot;:<span class="number">1</span>,&quot;validationTimeout&quot;:<span class="number">5000</span>,&quot;leakDetectionThreshold&quot;:<span class="number">0</span>,&quot;registerMbeans&quot;:<span class="literal">false</span>,&quot;allowPoolSuspension&quot;:<span class="literal">false</span>,&quot;autoCommit&quot;:<span class="literal">true</span>,&quot;isolateInternalQueries&quot;:<span class="literal">false</span>&#125; <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------+-------+----------------+------+---------+---------------------------------+---------------------------+---------------------------+---------------+---------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="number">4</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-创建静态读写分离规则"><a href="#2-创建静态读写分离规则" class="headerlink" title="2. 创建静态读写分离规则"></a>2. 创建静态读写分离规则</h2><p>本用例包含两个 MySQL 主从集群，因此读写分离规则也应配置为两个。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> READWRITE_SPLITTING RULE static_rwp_rule1 (</span><br><span class="line">WRITE_RESOURCE<span class="operator">=</span>ds_0,</span><br><span class="line">READ_RESOURCES(ds_1)</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">0.13</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> READWRITE_SPLITTING RULE static_rwp_rule2 (</span><br><span class="line">WRITE_RESOURCE<span class="operator">=</span>ds_2,</span><br><span class="line">READ_RESOURCES(ds_3)</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">0.05</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> READWRITE_SPLITTING RULES\G</span><br><span class="line"><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span> <span class="number">1.</span> <span class="type">row</span> <span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span></span><br><span class="line">                           name: static_rwp_rule1</span><br><span class="line">    auto_aware_data_source_name:</span><br><span class="line">write_data_source_query_enabled:</span><br><span class="line">         write_data_source_name: ds_0</span><br><span class="line">         read_data_source_names: ds_1</span><br><span class="line">             load_balancer_type:</span><br><span class="line">            load_balancer_props:</span><br><span class="line"><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span> <span class="number">2.</span> <span class="type">row</span> <span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span></span><br><span class="line">                           name: static_rwp_rule2</span><br><span class="line">    auto_aware_data_source_name:</span><br><span class="line">write_data_source_query_enabled:</span><br><span class="line">         write_data_source_name: ds_2</span><br><span class="line">         read_data_source_names: ds_3</span><br><span class="line">             load_balancer_type:</span><br><span class="line">            load_balancer_props:</span><br><span class="line"><span class="number">2</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h2 id="3-创建分片表"><a href="#3-创建分片表" class="headerlink" title="3. 创建分片表"></a>3. 创建分片表</h2><p>在 ShardingSphere-Proxy 中创建分片规则和分片表，注意规则名称和表名需要保持一致，<code>RESOURCES</code> 中需填写上一步所创建的两个读写分离规则。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> SHARDING <span class="keyword">TABLE</span> RULE t_user(</span><br><span class="line"> RESOURCES(static_rwp_rule1,static_rwp_rule2),</span><br><span class="line"> SHARDING_COLUMN<span class="operator">=</span>user_id,</span><br><span class="line"> TYPE(NAME<span class="operator">=</span>&quot;hash_mod&quot;,PROPERTIES(&quot;sharding-count&quot;<span class="operator">=</span>&quot;4&quot;))</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">0.11</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> SHARDING <span class="keyword">TABLE</span> RULE t_user\G</span><br><span class="line"><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span> <span class="number">1.</span> <span class="type">row</span> <span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span></span><br><span class="line">                            <span class="keyword">table</span>: t_user</span><br><span class="line">                actual_data_nodes:</span><br><span class="line">              actual_data_sources: static_rwp_rule1,static_rwp_rule2</span><br><span class="line">           database_strategy_type:</span><br><span class="line">         database_sharding_column:</span><br><span class="line"> database_sharding_algorithm_type:</span><br><span class="line">database_sharding_algorithm_props:</span><br><span class="line">              table_strategy_type: STANDARD</span><br><span class="line">            table_sharding_column: user_id</span><br><span class="line">    table_sharding_algorithm_type: hash_mod</span><br><span class="line">   table_sharding_algorithm_props: sharding<span class="operator">-</span>count<span class="operator">=</span><span class="number">4</span></span><br><span class="line">              key_generate_column:</span><br><span class="line">               key_generator_type:</span><br><span class="line">              key_generator_props:</span><br><span class="line">                    auditor_types:</span><br><span class="line">               allow_hint_disable:</span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> <span class="keyword">TABLE</span> `t_user` (</span><br><span class="line"> `user_id` <span class="type">int</span> <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line"> `order_id` <span class="type">int</span> <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line"> `status` <span class="type">varchar</span>(<span class="number">45</span>) <span class="keyword">DEFAULT</span> <span class="keyword">NULL</span>,</span><br><span class="line"> <span class="keyword">PRIMARY</span> KEY (`user_id`)</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">0.66</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user <span class="keyword">VALUES</span></span><br><span class="line">(<span class="number">1</span>,<span class="number">1</span>,<span class="string">&#x27;active&#x27;</span>),</span><br><span class="line">(<span class="number">2</span>,<span class="number">2</span>,<span class="string">&#x27;active&#x27;</span>),</span><br><span class="line">(<span class="number">3</span>,<span class="number">3</span>,<span class="string">&#x27;active&#x27;</span>),</span><br><span class="line">(<span class="number">4</span>,<span class="number">4</span>,<span class="string">&#x27;active&#x27;</span>);</span><br><span class="line">Query OK, <span class="number">4</span> <span class="keyword">rows</span> affected (<span class="number">0.22</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id;</span><br><span class="line"><span class="operator">+</span><span class="comment">---------+----------+--------+</span></span><br><span class="line"><span class="operator">|</span> user_id <span class="operator">|</span> order_id <span class="operator">|</span> status <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">---------+----------+--------+</span></span><br><span class="line"><span class="operator">|</span>       <span class="number">1</span> <span class="operator">|</span>        <span class="number">1</span> <span class="operator">|</span> active <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span>       <span class="number">2</span> <span class="operator">|</span>        <span class="number">2</span> <span class="operator">|</span> active <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span>       <span class="number">3</span> <span class="operator">|</span>        <span class="number">3</span> <span class="operator">|</span> active <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span>       <span class="number">4</span> <span class="operator">|</span>        <span class="number">4</span> <span class="operator">|</span> active <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">---------+----------+--------+</span></span><br><span class="line"><span class="number">4</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.05</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-验证读写分离配置"><a href="#4-验证读写分离配置" class="headerlink" title="4. 验证读写分离配置"></a>4. 验证读写分离配置</h2><p>在 ShardingSphere-Proxy 中，可在 SQL 前添加 <code>PREVIEW</code> 关键字来确认语句路由情况。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                              <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_1             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_0 <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_1             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_2 <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_3             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_1 <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_3             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_3 <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------------------------------------+</span></span><br><span class="line"><span class="number">4</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.05</span> sec)</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>通过以上输出信息确认，全表检索通过 ds_1 和 ds_3 来完成，均为主从集群的备节点，与预期一致。下面通过一条带有 <code>WHERE</code> 条件的 SQL 确认。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user <span class="keyword">WHERE</span> user_id<span class="operator">=</span><span class="number">1</span>;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                             <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_3             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_1 <span class="keyword">WHERE</span> user_id<span class="operator">=</span><span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user <span class="keyword">WHERE</span> user_id<span class="operator">=</span><span class="number">2</span>;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                             <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_1             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_2 <span class="keyword">WHERE</span> user_id<span class="operator">=</span><span class="number">2</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.04</span> sec)</span><br></pre></td></tr></table></figure>
+
+<p>通过以上输出信息确认，带有 <code>WHERE</code> 条件的查询也都是通过备节点 ds_1 和 ds_3 来完成检索，与预期一致。</p>
+<p>最后，确认 <code>INSERT</code> 语句的路由。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user <span class="keyword">VALUES</span>(<span class="number">5</span>,<span class="number">5</span>,<span class="string">&#x27;active&#x27;</span>);</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                                  <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_2             <span class="operator">|</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user_1 <span class="keyword">VALUES</span>(<span class="number">5</span>, <span class="number">5</span>, <span class="string">&#x27;active&#x27;</span>) <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user <span class="keyword">VALUES</span>(<span class="number">6</span>,<span class="number">6</span>,<span class="string">&#x27;active&#x27;</span>);</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                                  <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_0             <span class="operator">|</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user_2 <span class="keyword">VALUES</span>(<span class="number">6</span>, <span class="number">6</span>, <span class="string">&#x27;active&#x27;</span>) <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user <span class="keyword">VALUES</span>(<span class="number">7</span>,<span class="number">7</span>,<span class="string">&#x27;active&#x27;</span>);</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                                  <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_2             <span class="operator">|</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user_3 <span class="keyword">VALUES</span>(<span class="number">7</span>, <span class="number">7</span>, <span class="string">&#x27;active&#x27;</span>) <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br></pre></td></tr></table></figure>
+
+<p><code>INSERT</code> 操作均由主节点 ds_0 和 ds_2 完成，与预期一致，测试结束。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>在 Sharding 和读写分离组合使用的配置中，务必要先创建读写分离的规则，再去配置 Sharding。因为 Sharding 是需要基于读写分离去完成分片配置，两者顺序不可颠倒。</p>
+]]></content>
+      <tags>
+        <tag>ShardingSphere</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>初识 MySQL HeatWave</title>
+    <url>/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/</url>
+    <content><![CDATA[<p>MySQL 作为全球最欢迎的数据库，已在交易场景叱咤风云多年。在 2020 年底，OCI（Oracle Cloud Infrastructure）推出了一个黑科技插件，它弥补了 MySQL 在分析场景的短板，Oracle 官方称它比 Aurora 快 1400 倍，比 Redshift 快 6.5 倍，而且还能以二分之一的成本完成这些工作，它就是 MySQL HeatWave。</p>
+<p>目前网络上关于 MySQL HeatWave 的资料相对较少，我通过已有的资料和 B 站公开课视频初探 MySQL HeatWave，梳理出本篇笔记。</p>
+<p>本文发布时间为 2022 年 11 月，由于产品更新的客观情况，本文部分信息会存在实效性，请以官方文档为准。（<a href="https://dev.mysql.com/doc/heatwave/en/heatwave-introduction.html">https://dev.mysql.com/doc/heatwave/en/heatwave-introduction.html</a>)</p>
+<h1 id="MySQL-HeatWave-简介"><a href="#MySQL-HeatWave-简介" class="headerlink" title="MySQL HeatWave 简介"></a>MySQL HeatWave 简介</h1><p>MySQL HeatWave 是一个内置高性能内存查询加速器的 MySQL 云服务。借助该服务，我们无需对当前应用进行任何更改，即可将混合工作负载的 MySQL 性能提高数个量级。</p>
+<p>相比传统的分析场景，MySQL HeatWave 可以让用户无需再使用单独的分析数据库、单独的机器学习 (ML) 工具以及提取、转换和加载（ETL）复制。同时，借助 MySQL HeatWave 机器学习，开发人员和数据分析师可以在 MySQL HeatWave 中构建、训练、部署和解释机器学习模型，无需将数据迁移到单独的机器学习服务中。</p>
+<p>目前 MySQL HeatWave  可在 OCI（Oracle Cloud Infrastructure）、AWS（Amazon Web Services）和 Microsoft Azure 上使用。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/1-mhw-overview.png" alt="heatwave-overview"></p>
+<span id="more"></span>
+
+<p>MySQL HeatWave 可以附加到 MDS（MySQL Database Service）来支持分析类查询，它不会暴露给应用程序。MySQL HeatWave 的数据库是以列存形式存储在内存当中。</p>
+<p>简单了解 MySQL HeatWave，首先了解如下三条内容即可：</p>
+<ol>
+<li>使用<strong>同一个 MySQL</strong> 数据库来支持 OLTP 和 OLAP；</li>
+<li>数据以分区的方式存储在<strong>内存</strong>中；</li>
+<li>应用程序<strong>无需做任何更改</strong>。</li>
+</ol>
+<h1 id="MySQL-HeatWave-技术架构"><a href="#MySQL-HeatWave-技术架构" class="headerlink" title="MySQL HeatWave 技术架构"></a>MySQL HeatWave 技术架构</h1><h2 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h2><p>MySQL HeatWave 的架构如下图所示，它以一个插件的形式存在于整个 MySQL 数据库系统当中，它不会直接面对应用程序，可以理解为 MySQL HeatWave 挂在了 MDS 之下，用户无需修改原有的数据访问方式。</p>
+<p>MySQL HeatWave 插件对应着若干个 MySQL HeatWave Node。MySQL HeatWave 的数据在内存中以列存的方式存储，其持久化的数据是存放在对象存储中，可在 Node 失效后快速完成恢复。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/2-mhw-arch.png" alt="2-mhw-arch.png"></p>
+<h2 id="列存"><a href="#列存" class="headerlink" title="列存"></a>列存</h2><p>HeatWave 的数据以列存方式存储在内存中，便于向量化处理，同时数据在加载到内存前会进行编码和压缩，可提高性能和减少内存占用，从而降低客户的成本。</p>
+<p>![3-mhw-columnar in-memory.png](3-mhw-columnar in-memory.png)</p>
+<ol>
+<li>基于行存数据做水平分区，基于水平分区，可以将查询在节点级并行执行来加速 scan、join、group-by、aggr 和 top-k 等算子，同时分区规划是与底层 RAPID 定制化硬件适配的。</li>
+<li>分区内部将数据按照schema定义组织成列式存储，以引入向量化执行，每个向量化计算的单位是16KiB 的 vector，各列对应行的vector组合在一起成为 chunk，每个 partition 会有多个 chunks。</li>
+<li>为了适配 DMS，vector 又划分为多个 tile，每 64 行组成一个tile作为数据传输的最小单元。</li>
+<li>为了减少内存的使用，所有存储的数据都会做编码或压缩。</li>
+</ol>
+<h1 id="MySQL-HeatWave-功能"><a href="#MySQL-HeatWave-功能" class="headerlink" title="MySQL HeatWave 功能"></a>MySQL HeatWave 功能</h1><p>以下内容摘自 Oracle 官网，地址为 <a href="https://www.oracle.com/mysql/#rc30p6">https://www.oracle.com/mysql/#rc30p6</a></p>
+<ul>
+<li><p><strong>一个 MySQL 数据库满足 OLTP 和 OLAP 两种需求</strong></p>
+<ul>
+<li>对 ETL 无依赖</li>
+<li>提供实时分析</li>
+<li>增强安全性</li>
+<li>无需修改应用程序</li>
+<li>支持 MySQL 数据库所支持的 BI 和数据可视化工具</li>
+<li>可在公有云和用户的数据中心使用</li>
+</ul>
+</li>
+<li><p><strong>高性能内存查询加速器</strong></p>
+<ul>
+<li>采用大规模扩展和高性能架构设计</li>
+<li>针对云进行了优化</li>
+<li>针对高事务处理量和连接进行了优化</li>
+</ul>
+</li>
+<li><p><strong>In-database 机器学习</strong></p>
+<ul>
+<li>无需额外的机器学习服务</li>
+<li>利用机器学习生命周期自动化，节省时间并减轻工作量</li>
+<li>可解释的机器学习模型</li>
+</ul>
+</li>
+<li><p><strong>MySQL 自动驾驶</strong></p>
+<ul>
+<li>自动配置</li>
+<li>自动线程池</li>
+<li>自动分片预测</li>
+<li>自动编码</li>
+<li>自动查询计划优化</li>
+<li>自动数据安置</li>
+</ul>
+</li>
+<li><p><strong>MySQL 湖仓一体（beta）</strong></p>
+<ul>
+<li>TPC-H 性能优于同类产品</li>
+<li>快速分析所有数据</li>
+<li>可扩展的管理、处理数据架构</li>
+<li>机器学习驱动自动优化，提升性能并节省时间</li>
+</ul>
+</li>
+<li><p><strong>实时弹性</strong></p>
+<ul>
+<li>在高峰时间始终保持稳定的高性能，成本更低且无停机时间</li>
+<li>避免过度预配实例</li>
+</ul>
+</li>
+<li><p><strong>全托管数据库服务</strong></p>
+<ul>
+<li>由 MySQL 工程团队开发、管理和提供支持</li>
+<li>MySQL HeatWave 交互式控制台：管理资源、运行查询和监视性能</li>
+</ul>
+</li>
+<li><p><strong>高级安全性</strong></p>
+<ul>
+<li>通过密钥生成和数字签名进行非对称加密</li>
+<li>数据脱敏</li>
+<li>SQL 白名单</li>
+</ul>
+</li>
+</ul>
+<h1 id="MySQL-HeatWave-工作原理"><a href="#MySQL-HeatWave-工作原理" class="headerlink" title="MySQL HeatWave 工作原理"></a>MySQL HeatWave 工作原理</h1><ol>
+<li><strong>RAPID 引擎支持语句中相关函数；</strong></li>
+<li><strong>RAPID 引擎执行时间评估少于 InnoDB 的执行时间。</strong></li>
+</ol>
+<p>当同时满足以上两个条件时，将由 RAPID 引擎，也就是 MySQL HeatWave 来处理相关业务请求。</p>
+<p>在启用 MySQL HeatWave 插件后，对于接收到的请求，MDS 会通过两个条件来判断该请求是否走 RAPID 引擎，MySQL HeatWave 所使用的引擎是 RAPID，在研发阶段 MySQL HeatWave 的名字就是“RAPID”。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/4-mhw-engine.png" alt="4-mhw-engine.png"></p>
+<h1 id="MySQL-HeatWave-数据加载"><a href="#MySQL-HeatWave-数据加载" class="headerlink" title="MySQL HeatWave 数据加载"></a>MySQL HeatWave 数据加载</h1><h2 id="加载方式"><a href="#加载方式" class="headerlink" title="加载方式"></a>加载方式</h2><p>对于 MySQL HeatWave 的数据，可通过如下三种方式进行加载：</p>
+<ol>
+<li>手动加载数据，每次加载一张表；</li>
+<li>通过自动并行方式加载数据，通过 Autopilot 的方式可并行执行，效率较高；</li>
+<li>通过 MySQL HeatWave 的控制台，以可视化的操作来完成数据加载，这种方式目前仅限在 AWS 上进行操作。没错，这里确实是只有 AWS 支持 MySQL HeatWave 控制台，AWS 快了 OCI 一步。</li>
+</ol>
+<p>在初次数据加载时可能会耗时久一些，在完成数据加载后，MySQL HeatWave 会自动地保持与 InnoDB 数据一致，这里值得关注的是，<strong>自动同步变更数据的模式是异步的，最多可能要用户接受 200ms 的数据延迟，也就是说 MDS 上的数据变更不会等待 MySQL HeatWave 的反馈</strong>。</p>
+<h2 id="同步方式"><a href="#同步方式" class="headerlink" title="同步方式"></a>同步方式</h2><p>MDS 会根据如下策略对数据进行同步：</p>
+<ol>
+<li>每 200 ms；</li>
+<li>当变更传输缓冲区达到 64MB 时；</li>
+<li>在 MDS 中，经过 DML 变更的数据被后续的 HeatWave 查询需要读取时。</li>
+</ol>
+<h1 id="MySQL-HeatWave-部署方式"><a href="#MySQL-HeatWave-部署方式" class="headerlink" title="MySQL HeatWave 部署方式"></a>MySQL HeatWave 部署方式</h1><h2 id="公有云"><a href="#公有云" class="headerlink" title="公有云"></a>公有云</h2><p>MySQL HeatWave  可支持在 OCI（Oracle Cloud Infrastructure）、AWS（Amazon Web Services）和 Microsoft Azure 上使用。</p>
+<p>所需的 HeatWave 节点数取决于数据大小，OCI 和 Azure   最多支持 64 个节点。在亚马逊网络服务（AWS）上，一个HeatWave集群最多支持128个 节点。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/5-mhw-cloud.png" alt="5-mhw-cloud.png"></p>
+<h2 id="混合部署"><a href="#混合部署" class="headerlink" title="混合部署"></a>混合部署</h2><p>混合部署是指本地部署 OLTP + 云端部署 OLAP 的方式，在这种混合部署中，客户可以使用 MySQL 复制将本地 MySQL 数据复制到 OCI 或 AWS 的 MySQL HeatWave，而无需通过 ETL 来满足分析业务需求。</p>
+<p>这种<strong>混合部署方式需要考虑数据延迟情况</strong>，在“数据加载”中已介绍，InnoDB 和 HeatWave 间数据是异步进行传输的，加上网络的延迟，需要考虑数据的实时性问题。据了解目前中国区没有 MySQL HeatWave。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/6-mhw-hy.png" alt="6-mhw-hy.png"></p>
+<h2 id="本地部署"><a href="#本地部署" class="headerlink" title="本地部署"></a>本地部署</h2><p>OCI 支持部署在用户的数据中心，可满足合规要求，让数据驻留在用户的数据中心。这样的部署方式具备以下特点：</p>
+<ol>
+<li>具有独立的 OCI 云区域，由 Oracle 托管；</li>
+<li>满足数据驻留在用户数据中心的需求；</li>
+<li>满足低延迟的需求。</li>
+</ol>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/7-mhw-local.png" alt="7-mhw-local.png"></p>
+<h1 id="MySQL-HeatWave-性价比"><a href="#MySQL-HeatWave-性价比" class="headerlink" title="MySQL HeatWave 性价比"></a>MySQL HeatWave 性价比</h1><p>MySQL HeatWave 和 Amazon Redshift 「最快的实例」进行性能对比，对 19 次 TPC-H 测试结果进行几何平均计算后，MySQL HeatWave 比 Amazon Redshift 速度快 2.7 倍，成本仅为 Amazon Redshift 的三分之一。</p>
+<p>![8-mhw-Amazon Redshift1.png](8-mhw-Amazon Redshift1.png)</p>
+<p>MySQL HeatWave 和 Amazon Redshift 「低成本实例」进行性能对比，MySQL HeatWave  性能上要领先 Amazon Redshift 17 倍以上，投入成本持平。</p>
+<p>![9-mhw-Amazon Redshift2.png](9-mhw-Amazon Redshift2.png)</p>
+<p>从官方公布的性价比数据看，相比图上其他几款产品，MySQL HeatWave 性价比最高。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/10-mhw-tpc-h.png" alt="10-mhw-tpc-h.png"></p>
+<h1 id="MySQL-HeatWave-费用"><a href="#MySQL-HeatWave-费用" class="headerlink" title="MySQL HeatWave 费用"></a>MySQL HeatWave 费用</h1><p>在 Oracle 公益课堂中，我们可以了解到 MySQL HeatWave 的大概使用成本，对于这张图我们只需要关注下半部分，<strong>对于 2T 数据量的环境，每月的成本约为 1260 美元</strong>。</p>
+<p>其中包括了 MDS 费用、MDS 存储的费用和 HeatWave 的费用。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/14-cost.png" alt="14-cost.png"></p>
+<h1 id="MySQL-HeatWave-多云差异"><a href="#MySQL-HeatWave-多云差异" class="headerlink" title="MySQL HeatWave 多云差异"></a>MySQL HeatWave 多云差异</h1><h2 id="OCI-和-AWS"><a href="#OCI-和-AWS" class="headerlink" title="OCI 和 AWS"></a>OCI 和 AWS</h2><p>HeatWave 在 OCI 和 AWS 两朵云的 Roadmap 上的差异是比较有趣的，前面已提到可视化的数据加载只能通过 AWS 来完成，不只是这项能力，通过下图来看，AWS 在用户体验上要优于 OCI。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/11-mhw-oci-aws.png" alt="11-mhw-oci-aws.png"></p>
+<p>(<a href="https://www.oracle.com/mysql/#roadmap">https://www.oracle.com/mysql/#roadmap</a>)</p>
+<p>在 OCI 中需要使用控制台时，将会跳转到 AWS。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/12-mhw-console.png" alt="12-mhw-console.png"></p>
+<h2 id="Azure"><a href="#Azure" class="headerlink" title="Azure"></a>Azure</h2><p>对于 Azure 用户，仍然可以使用 MySQL HeatWave 服务，它是通过 Azure VNET 连接 OCI 的 MySQL HeatWave，也就是说，实际上使用的还是 OCI 的环境。</p>
+<p>目的是为 Azure 用户提供原生用户体验，私有互联的方式将网络延迟控制在 2ms 内。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/13-mhw-odsa.png" alt="13-mhw-odsa.png"></p>
+<p>(<a href="https://www.oracle.com/cloud/azure/oracle-database-for-azure/">https://www.oracle.com/cloud/azure/oracle-database-for-azure/</a>)</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>MySQL HeatWave  可支持在 OCI（Oracle Cloud Infrastructure）、AWS（Amazon Web Services）和 Microsoft Azure 上使用，也支持将 OCI 部署到用户数据中心。</p>
+<p>启用 MySQL HeatWave 插件后，用户可以通过一个 MySQL 服务来满足业务在 TP 和 AP 的需求，而无需修改业务。通过内部流程自动地完成数据同步，不需要单独维护 ETL，可保持架构简洁。自动驾驶（AI）和湖仓一体的能力给用户更多期待。</p>
+<p>MySQL HeatWave 弥补了 MySQL 在分析场景的能力，对于中小型企业有非常大的意义。</p>
+<p>其中有两方面不足之处，值得用户关注：InnoDB 的存储（扩展限制）及数据一致性问题。</p>
+<p>扩展限制：MySQL HeatWave 可以提供扩展能力，但 MySQL InnoDB 存储问题没有在本质上被解决掉，InnoDB 面对海量数据的情况，仍存在较大挑战。</p>
+<p>数据一致性：对于数据一致性要求较高的场景，需要考虑 InnoDB 到 HeatWave 的延迟问题（异步传输）。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://dev.mysql.com/doc/heatwave/en/heatwave-introduction.html">[1] MySQL :: MySQL HeatWave User Guide :: 1 Overview</a></p>
+<p><a href="https://www.nextplatform.com/2021/08/10/pushing-cloud-mysql-performance-the-oracle-way/">[2] Pushing Cloud MySQL Performance The Oracle Way (nextplatform.com)</a></p>
+<p><a href="http://mysql.taobao.org/monthly/2021/04/04/">[3] MySQL · HTAP · 分析型执行引擎 (taobao.org)</a></p>
+<p><a href="https://www.bilibili.com/video/BV1Mq4y1Q7Zt/?spm_id_from=333.337.search-card.all.click&vd_source=7ad99b8f04cc31bfc1c6509a18c58cde">[4] Oracle 公益课堂：MDS &amp; Heatwave</a></p>
+<p><a href="https://www.oracle.com/cn/mysql/heatwave/#rc30p1">[5] HeatWave | Oracle 中国</a></p>
+<p><a href="https://www.oracle.com/mysql/#rc30p6">[6] MySQL HeatWave Database Service | Oracle</a></p>
+]]></content>
+      <tags>
+        <tag>MySQL</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>最后的防线：数据存储加密方案</title>
+    <url>/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/</url>
+    <content><![CDATA[<p><img src="/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-0.png" alt="image"></p>
+<p>数字化时代，数据安全与隐私泄露事件频发，同时，安全事件涉及面较广、影响力巨大，数据安全威胁问题愈发凸显。</p>
+<p>随着数据安全在国家安全体系中的重要地位进一步明确，数据安全相关法律体系也不断在完善，如《数据安全法》《个人信息保护法》《网络安全法》和《网络数据安全管理条例（征求意见稿）》。</p>
+<p>防范数据安全风险事件的发生、保障业务运营以及企业自身的发展需要都成为了企业在数据安全建设中的关注焦点。在信通院发布的《2021 数据安全行业调研报告》中，有 97% 的受访企业表示监管驱动是企业开展数据安全能力建设的主要动力。</p>
+<span id="more"></span>
+
+<p><img src="/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-1.png" alt="image"></p>
+<p>图片来源：信通院《2021 数据安全行业调研报告》</p>
+<h1 id="加密改造面临的挑战"><a href="#加密改造面临的挑战" class="headerlink" title="加密改造面临的挑战"></a>加密改造面临的挑战</h1><h2 id="审计合规"><a href="#审计合规" class="headerlink" title="审计合规"></a>审计合规</h2><ul>
+<li>满足合规要求</li>
+<li>过程可回溯</li>
+<li>密钥可定期更换</li>
+</ul>
+<h2 id="改造成本"><a href="#改造成本" class="headerlink" title="改造成本"></a>改造成本</h2><ul>
+<li>改造系统</li>
+<li>上下游系统、服务集群保持一致策略</li>
+</ul>
+<h2 id="业务安全性"><a href="#业务安全性" class="headerlink" title="业务安全性"></a>业务安全性</h2><ul>
+<li>保证改造过程的平滑</li>
+<li>出现问题可快速回滚</li>
+<li>减少对系统的影响</li>
+</ul>
+<h2 id="性能"><a href="#性能" class="headerlink" title="性能"></a>性能</h2><ul>
+<li>加密运算带来的性能损耗</li>
+<li>ROI 可控，满足预算要求</li>
+</ul>
+<h1 id="常见的-6-种数据存储加密方案"><a href="#常见的-6-种数据存储加密方案" class="headerlink" title="常见的 6 种数据存储加密方案"></a>常见的 6 种数据存储加密方案</h1><p>在整理文章的过程中查找了相关的材料，基本上会将常见的方案定义为 6 种：</p>
+<ul>
+<li>应用加密方案</li>
+<li>数据库加密网关方案</li>
+<li>后置代理加密方案</li>
+<li>数据库 TDE 加密方案</li>
+<li>文件加密方案</li>
+<li>磁盘加密方案</li>
+</ul>
+<h2 id="1-应用加密方案"><a href="#1-应用加密方案" class="headerlink" title="1. 应用加密方案"></a>1. 应用加密方案</h2><p>在应用内实现数据库加密是一种较早的加密方案，使用灵活但实现难度相对较大。该方案是在业务代码层面通过加密 API 实现加密需求，可根据业务特点进行灵活地设计，敏感数据在应用层经过加密后，以密文的形式入库，检索数据也需要在应用内进行解密。</p>
+<p><strong>加密位置</strong>：应用程序内部</p>
+<p><strong>适用场景</strong>：适用于防超管权限、业务需要处理加密表或字段相对较少的场景。</p>
+<p><strong>优势</strong></p>
+<ul>
+<li><strong>防超管权限</strong>：系统管理员及 DBA 无法获取明文数据；</li>
+<li><strong>无外部组件依赖</strong>：通过业务自身即可实现数据加密的需求，无需依赖第三方厂商支持；</li>
+<li><strong>灵活地加密设计</strong>：可深度结合业务的特点进行定制化业务开发。</li>
+</ul>
+<p><strong>劣势</strong></p>
+<ul>
+<li><strong>业务改造难度较大</strong>：已有系统无法透明移植，续升级维护实施成本高、影响面大；</li>
+<li><strong>对开发人员要求较高</strong>：要求开发人员在理解业务的迁移，还需要精通加密技术方案，如密钥的合理使用，未来更新密钥的方案等问题；</li>
+<li><strong>数据库原生能力受限</strong>：同应用内加密方案相同，加密网关方案仍需面对不能对应用完全透明的问题，复杂的数据计算无法通过数据库原生能力来完成，如 &lt;、&gt;、like 和 between 等原生能力。</li>
+</ul>
+<h2 id="2-数据库加密网关方案"><a href="#2-数据库加密网关方案" class="headerlink" title="2. 数据库加密网关方案"></a>2. 数据库加密网关方案</h2><p>在部分材料中，数据库网关加密也被称为数据库前置加密。顾名思义，该方案是在数据库之前完成了数据加密。</p>
+<p>与应用内加密方案较大的区别是，加密网关方案以独立组件的形式提供加密服务，它可以是 JDBC 驱动形态，也可以是代理形态，研发人员不需要关注业务与加密之间的逻辑问题，更多精力可聚焦于业务的研发。</p>
+<p>数据库加密网关在对业务入侵较小的前提下，还具备灵活选择加密算法的特点，是一种较为通用的加密方案。若选择了 JDBC 驱动形态，则可对任意数据库进行数据加密。</p>
+<p><strong>加密位置</strong>：业务代码与数据库之间，JDBC 驱动层或代理层</p>
+<p><strong>适用场景</strong>：适用于防超管权限，同时业务侧及数据库侧不需关注加密实现的场景。</p>
+<p><strong>优势</strong></p>
+<ul>
+<li><strong>防超管权限</strong>：系统管理员及 DBA 无法获取明文数据；</li>
+<li><strong>加密粒度细</strong>：可在字段级别完成加密处理；</li>
+<li><strong>入侵少</strong>：业务系统几乎不改动或者少改动代码，即可通过加密网关实现数据加密的需求；</li>
+<li><strong>通用性强</strong>：驱动+代理两种接入端，可覆盖大部分加密场景需求，避免重复“造轮子”。</li>
+</ul>
+<p><strong>劣势</strong></p>
+<ul>
+<li><strong>数据库原生能力受限</strong>：同应用内加密方案相同，加密网关方案仍需面对不能对应用完全透明的问题，复杂的数据计算无法通过数据库原生能力来完成，如 &lt;、&gt;、like 和 between 等原生能力。</li>
+</ul>
+<h2 id="3-后置代理加密方案"><a href="#3-后置代理加密方案" class="headerlink" title="3. 后置代理加密方案"></a>3. 后置代理加密方案</h2><p>后置代理加密方案也被称为外挂加密，是一种透明的加密方案。第三方工具借助数据库原生能力实现加密需求，包括视图、触发器、扩展索引和外部调用。通过视图实现加密数据透明查询处理、通过触发器实现数据的加密插入和更新处理、通过数据库的扩展索引接口实现加密索引、通过外部接口调用实现独立于数据库的权限控制和加密算法，对应用完全透明。</p>
+<p><strong>加密位置</strong>：数据库外层</p>
+<p><strong>适用场景</strong>：适用于防超管权限、对权限进行细分、对应用透明且检索加密字段不多的场景，同时仍需考虑数据库的支持情况。</p>
+<p><strong>优势</strong>：</p>
+<ul>
+<li><strong>独立权限体系</strong>：具备更细粒度的权限管理，独立权限管理体系可防止超管用户越权检索敏感数据；</li>
+<li><strong>对应用透明</strong>：应用程序无需做调整，对应用完全透明；</li>
+<li><strong>加密粒度细</strong>：可在字段级别完成加密处理。</li>
+</ul>
+<p><strong>​劣势</strong>：</p>
+<ul>
+<li><strong>可选产品较少</strong>：需产品开放高级接口，数据库产品可选范围较小；</li>
+<li><strong>替换数据库难</strong>：由于该方案高度依赖数据库的原生能力，因此未来更换数据库较难；</li>
+<li><strong>性能损耗较高</strong>。</li>
+</ul>
+<h2 id="4-数据库-TDE-加密方案"><a href="#4-数据库-TDE-加密方案" class="headerlink" title="4. 数据库 TDE 加密方案"></a>4. 数据库 TDE 加密方案</h2><p>TDE（Transparent Data Encryption）即透明数据加密，是一种在数据库内部实现的加密方式，顾名思义，对业务和用户透明。数据文件中存储密文数据，加解密均在内存中完成，且不会增加数据文件的大小。</p>
+<p><strong>加密位置</strong>：数据库内核层</p>
+<p><strong>适用场景</strong>：使用于业务程序不能做修改的场景，在数据库产品能够支持 TDE 技术的前提下，该方案可覆盖多数加密需求的场景。</p>
+<p><strong>优势</strong>：</p>
+<ul>
+<li><strong>对应用透明</strong>：应用程序无需做调整，对应用完全透明；</li>
+<li><strong>自动管理密钥</strong>：用户无需关注密钥管理问题。</li>
+</ul>
+<p><strong>劣势</strong>：</p>
+<ul>
+<li><strong>超管权限不受限</strong>：无法有效限制系统管理员及 DBA；</li>
+<li><strong>加密算法受限</strong>：无法满足有国密算法要求的场景；</li>
+<li><strong>可选产品较少</strong>：支持透明加密的数据库产品有限。</li>
+</ul>
+<h2 id="5-文件加密方案"><a href="#5-文件加密方案" class="headerlink" title="5. 文件加密方案"></a>5. 文件加密方案</h2><p>在操作系统文件驱动层，将数据库的存储文件经过加密后存储到磁盘上。在数据存储文件被打开的时候进行解密，在数据落地后再进行加密，在具备基础加解密能力的同时，还能够根据操作系统用户或者访问文件的进程 ID 进行基本的访问权限控制。</p>
+<p><strong>加密位置</strong>：文件系统层</p>
+<p><strong>适用场景</strong>：适用于透明加密需求，同时对应用进程有绑定需求的场景，只有授权的“白名单”应用进程访问文件时，才能获得明文。</p>
+<p><strong>优势</strong>：</p>
+<ul>
+<li><strong>对应用透明</strong>：应用程序无需做调整，对应用完全透明；</li>
+<li><strong>加密粒度细</strong>：可在进程级别进行控制。</li>
+</ul>
+<p><strong>劣势</strong>：</p>
+<ul>
+<li><strong>超管权限不受限</strong>：无法有效限制系统管理员及 DBA；</li>
+<li><strong>加密粒度粗</strong>：无法实现字段级别的加密处理；</li>
+<li><strong>性能损耗较大</strong>。</li>
+</ul>
+<h2 id="6-磁盘加密方案"><a href="#6-磁盘加密方案" class="headerlink" title="6. 磁盘加密方案"></a>6. 磁盘加密方案</h2><p>指通过动态加解密技术，对磁盘或分区进行动态加解密的技术，可通过软件或硬件的方式进行加密。当数据库访问磁盘扇区的时候，对加密扇区再进行解密。这种方式对于数据库自身来说是透明的，数据库管理系统也感觉不到加密解密过程的存在。</p>
+<p><strong>加密位置</strong>：磁盘层</p>
+<p><strong>适用场景</strong>：全磁盘加密技术适用于磁盘上所有数据（包括操作系统）进行动态加解密的场景。</p>
+<p><strong>优势</strong>：</p>
+<ul>
+<li><strong>对应用透明</strong>：应用程序无需做调整，对应用完全透明；</li>
+<li><strong>性能损耗低</strong>：磁盘加密技术通过操作系统内核层实现，能够最大化减少加解密损耗。</li>
+</ul>
+<p><strong>劣势</strong>：</p>
+<ul>
+<li><strong>超管权限不受限</strong>：无法有效限制系统管理员及 DBA；</li>
+<li><strong>加密粒度粗</strong>：无法实现字段级别的加密处理。</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>为便于大家对比，下表对以上六种方案做了能力的比对。这里要特别说明的是，以下内容均为网络搜集整理，部分内容可能会存在偏差，欢迎纠错。</p>
+<table>
+<thead>
+<tr>
+<th align="center"></th>
+<th align="center">硬盘加密</th>
+<th align="center">文件加密</th>
+<th align="center">数据库 TDE 加密<br></th>
+<th align="center">数据库后置加密</th>
+<th align="center">数据库网关</th>
+<th align="center">应用加密</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">部署位置</td>
+<td align="center">数据库服务器</td>
+<td align="center">数据库服务器</td>
+<td align="center">数据库内</td>
+<td align="center">数据库外</td>
+<td align="center">数据库与应用之间</td>
+<td align="center">应用内</td>
+</tr>
+<tr>
+<td align="center">对业务透明</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center"><strong>否</strong></td>
+<td align="center"><strong>否</strong></td>
+</tr>
+<tr>
+<td align="center">防磁盘丢失</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+</tr>
+<tr>
+<td align="center">防超管权限</td>
+<td align="center"><strong>否</strong></td>
+<td align="center"><strong>否</strong></td>
+<td align="center"><strong>否</strong></td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+</tr>
+<tr>
+<td align="center">加密粒度</td>
+<td align="center">硬盘&#x2F;卷</td>
+<td align="center">文件</td>
+<td align="center">表空间&#x2F;字段</td>
+<td align="center">字段</td>
+<td align="center">字段</td>
+<td align="center">文件&#x2F;字段</td>
+</tr>
+<tr>
+<td align="center">复杂计算</td>
+<td align="center">支持</td>
+<td align="center">支持</td>
+<td align="center">支持</td>
+<td align="center">支持</td>
+<td align="center">部分支持</td>
+<td align="center"><strong>不支持</strong></td>
+</tr>
+<tr>
+<td align="center">实施成本</td>
+<td align="center">低</td>
+<td align="center">低</td>
+<td align="center">低</td>
+<td align="center"><strong>高</strong></td>
+<td align="center">中</td>
+<td align="center"><strong>高</strong></td>
+</tr>
+<tr>
+<td align="center">性能损耗</td>
+<td align="center">低</td>
+<td align="center">中<br></td>
+<td align="center">低</td>
+<td align="center"><strong>高</strong></td>
+<td align="center">中</td>
+<td align="center">低</td>
+</tr>
+<tr>
+<td align="center">依赖厂商</td>
+<td align="center"><strong>是</strong></td>
+<td align="center"><strong>是</strong></td>
+<td align="center"><strong>是</strong></td>
+<td align="center"><strong>是</strong></td>
+<td align="center"><strong>是</strong></td>
+<td align="center">否</td>
+</tr>
+</tbody></table>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://mp.weixin.qq.com/s/LE8FFqaSVEwZVQ-57GZWEw">[1] 韩锋. 数据存储加密之方案与难点</a></p>
+<p><a href="https://mp.weixin.qq.com/s?__biz=MzkyNzE5MDUzMw==&mid=2247490496&idx=1&sn=82c49fef076f9786f8a2ec7baf2bf4a2">[2] 炼石网络CG. 一文读懂十种数据存储加密技术</a></p>
+<p><a href="https://mp.weixin.qq.com/s?__biz=MzA3MTQwNTQxMg==&mid=2650779068&idx=1&sn=02da7b93fd85597a84e29fb7a2572cf9">[3] 安华金和. 数据库加密技术的演进与对比</a></p>
+<p><a href="https://mp.weixin.qq.com/s?__biz=MzIyNDI3NzE3MQ==&mid=2650624325&idx=1&sn=8e794461f12ddd7ce34304015fbad194">[4] 中安威士. 关于数据库加密，你不能不知道的秘密（一）</a></p>
+]]></content>
+      <tags>
+        <tag>数据安全</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>相册 | 日晚菱歌唱，风烟满夕阳。</title>
+    <url>/2022/11/15/%E7%9B%B8%E5%86%8C-%E6%97%A5%E6%99%9A%E8%8F%B1%E6%AD%8C%E5%94%B1%EF%BC%8C%E9%A3%8E%E7%83%9F%E6%BB%A1%E5%A4%95%E9%98%B3%E3%80%82/</url>
+    <content><![CDATA[<p><img src="/2022/11/15/%E7%9B%B8%E5%86%8C-%E6%97%A5%E6%99%9A%E8%8F%B1%E6%AD%8C%E5%94%B1%EF%BC%8C%E9%A3%8E%E7%83%9F%E6%BB%A1%E5%A4%95%E9%98%B3%E3%80%82/20221115-%E5%A4%95%E9%98%B3-%E7%BE%8E%E5%9B%BE-Cynthia.jpg" alt="20221115-夕阳-美图-Cynthia"></p>
+]]></content>
+      <tags>
+        <tag>相册</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>浅谈与 DBA 息息相关的 Database Plus 理念</title>
+    <url>/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/</url>
+    <content><![CDATA[<p><img src="/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/20220817-1-0.png" alt="image"><br>近年来，数据库技术在多元化业务需求和系列政策驱动下，发展快马加鞭。数据库百花齐放为 DBA 提供了更多的发展路径的同时，也彻底的改变了 DBA 的工作内容、方式和标准。</p>
+<p>在<strong>数据库碎片化</strong>发展的趋势下，SphereEx CEO 张亮总在 2021 年首次提出了 <strong>Database Plus</strong> 理念，该理念倡导在数据库上层构建统一标准的生态层，提供如<strong>分布式数据库</strong>、<strong>异构统一接入</strong>、<strong>数据库能力增强</strong>、<strong>云原生</strong>及<strong>信创落地</strong>等方案。</p>
+<p>本文从数据库发展趋势出发来介绍 Database Plus 理念、对 DBA 的帮助及最佳实践，记录我个人对 Database Plus 的理解。</p>
+<span id="more"></span>
+
+<h1 id="数据库发展趋势"><a href="#数据库发展趋势" class="headerlink" title="数据库发展趋势"></a>数据库发展趋势</h1><p>数据库的发展需要从数据管理方式说起，数据管理方式经历了三个发展阶段，人工管理阶段、文件系统阶段和数据库系统阶段，各阶段特点如下图。</p>
+<p><img src="/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/20220817-1-1.png" alt="image"></p>
+<p>图源：华为云</p>
+<p>人工管理阶段和文件系统阶段的数据管理方式在一定条件下满足了数据的管理需求，但无法保证数据的完整性、唯一性及安全性。到了 20 世纪 60 年代初期，在计算机软硬件技术飞速发展下，真正意义上的数据库管理系统诞生，历经半个多世纪的技术发展，关系型数据库始终占有着主导地位。</p>
+<p>根据信通院发布的《数据库发展研究报告（2021 年）》，数据库管理系统的发展阶段分为前关系型阶段、关系型阶段和后关系型阶段。</p>
+<ul>
+<li><p><strong>阶段一：前关系型阶段（1960-1970）</strong></p>
+<p>层次和网状数据库管理系统，为第一代数据库管理系统，该阶段解决了<strong>数据的独立存储、统一管理和共享的问题</strong>，为数据库发展奠定了基础。</p>
+<p>代表产品： IDS(Integrated Data Storage) 和 IMS(Information Management System)，其中 IDS 是世界上第一款数据库管理系统。</p>
+</li>
+<li><p><strong>阶段二：关系型阶段（1970-2008）</strong></p>
+<p>关系数据库管理系统，为第二代数据库管理系统，<strong>数据抽象级别较高，易于理解和使用</strong>。IBM 研究员 E.F.Codd 在 1970 年发表了著名的《A Relational Model of Data for Large Shared Data Banks》论文，拉开了关系型数据库的历史序幕。</p>
+<p>代表产品：DB2、Informix、Oracle、PostgreSQL 、SQL Server 和 Sybase 等。</p>
+</li>
+<li><p><strong>阶段三：后关系型阶段（2008-至今）</strong></p>
+<p>新一代数据库管理系统，随着各行业数字化转型的推进，数据量呈爆发式增长、业务流量激增，传统数据库的架构在时代浪潮冲击下升级转型，如向分布式、云原生以及存算分离等架构演进，<strong>解决了海量数据存储、瞬时高并发以及弹性扩展的问题</strong>。</p>
+<p>代表产品：Aurora、Clustrix、CockroachDB、OceanBase、Spanner、TiDB 和 VoltDB 等。</p>
+</li>
+</ul>
+<p><img src="/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/20220817-1-2.png" alt="image"></p>
+<p>图源：信通院</p>
+<p>当今，在新兴业务需求和海量数据催生下，上层应用程序和底层数据技术愈发多样化，数据存储结构也越来越灵活，这些变化均对数据库能力不断提出新挑战。在交易场景外，如关联分析、物联网应用等赛道，也对应出现了图数据库、时序数据库等场景分化的产品，数据库技术不断在演进。</p>
+<p><strong>不同的数据库发展阶段会聚焦不同的问题，当前企业需要面对更细粒度的场景分化和更庞大的数据体量，也几乎不可能使用一种数据库来支撑所有的业务场景</strong>，因此，无论是 SQL、NoSQL 还是 NewSQL，都是不可或缺的存在，数据库多元共存是不可否认的现状。</p>
+<p>下图是信通院发布的数据库产业图谱，旨在全面客观展现全球数据库产业中的关键领域、环节和代表企业。单从厂商 Logo 数量来看已经有相当大的篇幅，对应数据库产品数量之多就不言而喻了。</p>
+<p><img src="/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/20220817-1-3.png" alt="image"></p>
+<p>图源：信通院-《全球数据库产业图谱（2022）》</p>
+<p><strong>数据库碎片化</strong>，是当前数据库的发展趋势。</p>
+<h1 id="数据库碎片化给-DBA-带来的难题"><a href="#数据库碎片化给-DBA-带来的难题" class="headerlink" title="数据库碎片化给 DBA 带来的难题"></a>数据库碎片化给 DBA 带来的难题</h1><p><a href="https://mp.weixin.qq.com/s/cBNLabTCJeuJ4uviChxrUw">“我们在讲的 Database Plus，到底能解决什么样的问题？”</a>提到了碎片化带来的 4 个痛点问题，分别是<strong>架构选型困难</strong>、<strong>技术挑战众多</strong>、<strong>运维复杂度高</strong>以及<strong>数据库间缺乏协作和统管能力</strong>，覆盖到了架构师所关注的方方面面。碎片化对应着变革，也改变着 DBA 的工作方式，下面我以 DBA 的角度，聊一聊在数据库碎片化浪潮中的感受。</p>
+<ul>
+<li><p><strong>系统稳定性堪忧</strong></p>
+<p>让数据库平稳运行是 DBA 的工作的重中之重，能否让我们 DBA 睡个好觉、过个好节，都取决于数据库技术栈的成熟度。</p>
+<p>在 DBA 心中稳定性永远在第一位，因此无论是产品新增还是替换，系统稳定性在一定时间内将一直是一个问号。</p>
+</li>
+<li><p><strong>产品选型工作繁重</strong></p>
+<p>数据库产品百花齐放，无论是基于内驱还是基于外驱的选型工作都非常繁重，数十甚至上百的测试用例一遍又一遍的在不同的产品上进行验证，选型工作时间紧、任务重。</p>
+<p>也曾听到过 DBA 圈的同学抱怨：“新产品接二连三，测不过来了”。</p>
+</li>
+<li><p><strong>学习成本直线攀升</strong></p>
+<p>单一的数据库产品无法满足业务的全部需求，保守估计，在企业内部至少有 3 种数据库产品并存，来满足不同阶段、不同业务的需求。随着架构升级、政策要求等原因，还会陆续加入新的产品，再也不是 MySQL+Oracle 一招鲜吃遍天的时代。</p>
+</li>
+<li><p><strong>运维体系被打破</strong></p>
+<p>数据库运维体系需要大量时间沉淀，相关运维方法、平台搭建以及团队的默契并非一朝一夕所能形成。数据库碎片化，迫使 DBA 团队需要掌握多样化数据库的运维方式，运维体系不断被打破再重整。</p>
+</li>
+<li><p><strong>生态欠缺致挑战多</strong></p>
+<p>文档和工具是生态建设中一部分，配套工具是一站式解决方案必不可少的工具，如兼容检查、异构迁移以及性能分析报告等工具，同时文档的结构和内容直接反映了产品的水平，是用户体验最直接的感受。</p>
+<p>目前新兴产品普遍在文档和工具方面表现均有所欠缺，起步晚、投入资源有限，也客观的存在“写文档的不懂技术，懂技术的不屑于写文档”的普遍问题，文档和工具的匮乏给 DBA 带来更多的挑战。</p>
+<h1 id="什么是-Database-Plus？"><a href="#什么是-Database-Plus？" class="headerlink" title="什么是 Database Plus？"></a>什么是 Database Plus？</h1></li>
+</ul>
+<blockquote>
+<p>Database Plus 是一种分布式数据库系统的设计理念。旨在碎片化的异构数据库上层构建生态，在最大限度复用数据库原生存算能力的前提下，进一步提供面向全局的扩展和叠加计算能力。使应用与数据库间的交互面向 Database Plus 构建的标准，从而屏蔽数据库碎片化对上层业务带来的差异化影响。</p>
+</blockquote>
+<h2 id="理念定位：生态和标准"><a href="#理念定位：生态和标准" class="headerlink" title="理念定位：生态和标准"></a>理念定位：生态和标准</h2><p>生态和标准，是最能体现 Database Plus 定位的词语。</p>
+<p>Database Plus 不是重新来做一款数据库产品，而是站在前人的肩膀上形成差异化核心能力、多元化产品生态和统一化接入标准，来解决如分布式构建、数据库能力增强、异构数据库统一接入等问题。</p>
+<h2 id="核心价值：连接、增强、可插拔"><a href="#核心价值：连接、增强、可插拔" class="headerlink" title="核心价值：连接、增强、可插拔"></a>核心价值：连接、增强、可插拔</h2><ul>
+<li><p><strong>连接</strong></p>
+<p>Database Plus 以数据库网关的形态为应用系统提供统一数据库入口，提供一个可以适配于各种数据库 SQL 方言和访问协议的中间层，Database Plus 将 SQL 解析而成的 AST（抽象语法树）根据其他数据库方言的规则重新生成 SQL，来屏蔽异构数据库方言差异，数据库网关是“连接”最佳的诠释。</p>
+</li>
+<li><p><strong>增强</strong></p>
+<p>在当前众多成熟数据库产品的基础之上，Database Plus 复用数据库原生的存储和计算能力，再对其算力、容量及功能进行突破。</p>
+<p>Database Plus 以全局化的方式在对数据库的分布式、数据控制和流量控制三个方面进行增强，能够灵活实现架构升级或数据库产品替换产生的需求，不需要业务层做妥协和重构。</p>
+</li>
+<li><p><strong>可插拔</strong></p>
+<p>随着连接和增强的生态的丰富，Database Plus 的形态可能会变得臃肿，因此可插拔架构是 Database Plus 必不可少的设计方案。在扩展的同时还能做到合理收敛，让用户只关注真正需要的部分，做到生态无边界，能力可插拔。</p>
+</li>
+</ul>
+<h2 id="形态展现：面向架构师、开发者和-DBA"><a href="#形态展现：面向架构师、开发者和-DBA" class="headerlink" title="形态展现：面向架构师、开发者和 DBA"></a>形态展现：面向架构师、开发者和 DBA</h2><p>面向不同的角色，Database Plus 所展现出的形态各有不同。</p>
+<ul>
+<li><p><strong>面向架构师的数据库计算增强平台</strong></p>
+<p>通过 Database Plus 更精细化地适配灵活多变的应用场景，提供微服务后端数据库单元化的最佳方案，在计算增强平台中可尽情发挥设计灵感和创造力，逐个击破架构选型难、运维复杂高以及异构并存和协作等难题。</p>
+</li>
+<li><p><strong>面向开发者的统一标准接入层</strong></p>
+<p>在开发过程中可使用 Database Plus 的 SQL 方言翻译能力，可自动识别协议和存储节点类型，如使用 MySQL 的方言来访问 PostgreSQL 的存储节点，降低开发者的学习和研发成本。</p>
+</li>
+<li><p><strong>面向 DBA 的分布式数据库解决方案</strong></p>
+<p>DBA 可使用最熟悉的技术栈来构建一套分布式数据库解决方案，该方案中 Database Plus 为计算层，数据库为存储层，同时所有的配置变更操作可通过 SQL 方式在 Database Plus 这一层中来完成。</p>
+</li>
+</ul>
+<p><img src="/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/20220817-1-4.png" alt="image"></p>
+<p>图：Database Plus 的多种形态</p>
+<h1 id="Database-Plus-理念对-DBA-有哪些帮助？"><a href="#Database-Plus-理念对-DBA-有哪些帮助？" class="headerlink" title="Database Plus 理念对 DBA 有哪些帮助？"></a>Database Plus 理念对 DBA 有哪些帮助？</h1><ul>
+<li><p><strong>提供稳定的基础架构</strong></p>
+<p>对于分布式解决方案的需求，DBA 可通过所擅长的技术栈产品进行构建，如 MySQL、PostgreSQL 或其他数据库产品，而无需担忧全新产品所带来的不确定性。</p>
+</li>
+<li><p><strong>带来灵活的扩展能力</strong></p>
+<p>面对架构扩容或是功能扩展需求，如分片扩容或数据加密处理等增强功能，DBA 可在 Database Plus 层完成扩容配置变更。</p>
+</li>
+<li><p><strong>降低 DBA 学习成本</strong></p>
+<p>基于现有数据库产品的生态体系，Database Plus 方案可让 DBA 继续沿用相关运维体系和工具，有效降低 DBA 学习成本。</p>
+</li>
+<li><p><strong>提供友好的维护体验</strong></p>
+<p>Database Plus 以数据库形态呈现给 DBA，DBA 的日常操作都会在 Database Plus 中以 SQL 的形式来完成，具备数据库原生般的操作体验。</p>
+</li>
+</ul>
+<h1 id="Database-Plus-最佳实践-ShardingSphere"><a href="#Database-Plus-最佳实践-ShardingSphere" class="headerlink" title="Database Plus 最佳实践-ShardingSphere"></a>Database Plus 最佳实践-ShardingSphere</h1><p>在 Database Plus 理念指导下，ShardingSphere 成为了 Database Plus 的最佳实践。</p>
+<p>ShardingSphere 起源于互联网分片需求的业务场景，历经数年发展到如今的 Database Plus 实践者，已从一款单一工具演变为数据库领域的新生态。在学习 ShardingSphere 过程中发现了网络上一些不准确的描述，这里用几行文字重新认识下 ShardingSphere。</p>
+<ol>
+<li><p><strong>2016 年开源，2020 年成为 Apache 顶级项目，目前有 17k Stars、400 多位贡献者及近 200 家企业登记在用（截至 2022 年 8 月）</strong>；</p>
+</li>
+<li><p><strong>项目由 JDBC 和 Proxy 两款产品组成，ShardingSphere 是项目的名称，Sharding-JDBC 是曾用名；</strong></p>
+</li>
+<li><p><strong>以数据库协议及 SQL 方式为业务提供数据库增强功能，原生支持 MySQL、PostgreSQL、SQL Server、Oracle 等多种数据存储引擎；</strong></p>
+</li>
+<li><p><strong>提供了面向分布式、面向数据控制（安全）和流量控制（全链路压测）的解决方案</strong>。</p>
+</li>
+</ol>
+<p>通过 ShardingSphere，DBA 可基于指定数据库产品快速构建分布式数据库方案，也可配置如读写分离、数据加密及影子库压测等数据库增强能力，内置 DistSQL 命令为 DBA 运维过程提供更友好的数据库原生体验。</p>
+<p>在性能方面，可关注发布在数据库领域顶级会议 ICDE 的论文 “<a href="https://download.sphere-ex.com/paper/a-holistic-and-pluggable-platform-for-data-sharding.pdf">Apache ShardingSphere：A Holistic and Pluggable Platform for Data Sharding</a>”中的数据，Sysbench 的表现如下图所示，性能明显优于其他产品。</p>
+<p><img src="/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/20220817-1-5.png" alt="image"></p>
+<p>图源：Apache ShardingSphere: A Holistic and Pluggable Platform for Data Sharding</p>
+<p>随着国际环境的变化，国产数据库的影响力快速扩大，2021 年上半年，ShardingSphere+openGauss 联合打造的分布式数据库解决方案使用 16 台服务器，在超过 1 小时的测试中得到了超过 1000 万 tpmC 的结果，满足了 openGauss 在海量数据场景下关于性能、可用性以及运维成本这三方面的诉求。如有国产化分布式数据库方案的需求，可多加关注。</p>
+<p>本篇文章主要说明 Database Plus 理念，因此 ShardingSphere 不展开介绍，更详细的介绍及说明可参考 <a href="https://shardingsphere.apache.org/document/current/cn/overview/">Apache ShardingSphere 在线文档</a>。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>在数据库碎片化时代，Database Plus 理念给我们更多数据库使用方式上的启发，随着 ShardingSphere 在异构数据计算增强平台的持续发力，不久后可能会改变 DBA 的工作方式。</p>
+<p>上面是我个人对 Database Plus 理念的理解，下面通过一张脑图回顾本文的内容。</p>
+<p><img src="/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/20220817-1-6.png" alt="image"></p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p>[1] <a href="https://mp.weixin.qq.com/s/cBNLabTCJeuJ4uviChxrUw">张亮. 我们在讲的 Database Plus，到底能解决什么样的问题？</a></p>
+<p>[2] <a href="https://mp.weixin.qq.com/s/alQfZJRB68aJCBf_lWFlOw">韩锋. 谈谈对 Database Plus 认识与畅想</a></p>
+<p>[3] <a href="https://www.modb.pro/doc/38220">中国信通院. 数据库发展研究报告（2021 年）</a></p>
+<p>[4] <a href="https://download.sphere-ex.com/paper/a-holistic-and-pluggable-platform-for-data-sharding.pdf">Apache ShardingSphere：A Holistic and Pluggable Platform for Data Sharding</a></p>
+<p>[5] <a href="https://mp.weixin.qq.com/s/tJDPXnRR1DPVOU7P-bFVVQ">Apache ShardingSphere. 16 台服务器达成 1000 万 tpmC！挑战分布式数据库性能极限</a></p>
+<p>[6] <a href="https://blog.csdn.net/qq_41635350/article/details/124697731">知识蒸馏-胖头鱼. 一文读懂数据库发展史</a></p>
+]]></content>
+      <tags>
+        <tag>ShardingSphere</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>通过二进制包快速安装 ShardingSphere-Proxy（5.2.1）</title>
+    <url>/2022/11/12/%E9%80%9A%E8%BF%87%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%8C%85%E5%BF%AB%E9%80%9F%E5%AE%89%E8%A3%85-ShardingSphere-Proxy%EF%BC%885-2-1%EF%BC%89/</url>
+    <content><![CDATA[<blockquote>
+<p>借本地虚机环境安装 ShardingSphere-Proxy 5.2.1 机会，记录了安装过程，供大家参考。</p>
+</blockquote>
+<p>ShardingSphere 支持多种安装方式，如通过二进制包、<a href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/startup/docker/">使用 Docker</a> 或<a href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/startup/helm/">使用 Helm</a>。本文档介绍如何通过二进制包快速构建 ShardingSphere-Proxy 测试环境，使用版本为 5.2.1。更详细的安装说明，请参考用户手册：<a href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/startup/bin/">使用二进制发布包</a>安装 ShardingSphere-Proxy。</p>
+<h1 id="环境要求"><a href="#环境要求" class="headerlink" title="环境要求"></a>环境要求</h1><ul>
+<li>操作系统：Linux，Windows</li>
+<li>Java JRE：8 或以上版本</li>
+</ul>
+<h1 id="安装-ShardingSphere-Proxy"><a href="#安装-ShardingSphere-Proxy" class="headerlink" title="安装 ShardingSphere-Proxy"></a>安装 ShardingSphere-Proxy</h1><p>通过 5 个步骤完成快速安装：</p>
+<ol>
+<li>下载产品包</li>
+<li>解压产品包</li>
+<li>修改配置文件（server.yaml）</li>
+<li>引入数据库驱动</li>
+<li>启动服务</li>
+</ol>
+<span id="more"></span>
+
+<p>环境信息如下：</p>
+<ul>
+<li>配置：1c&#x2F;2g</li>
+<li>操作系统：CentOS 7.6</li>
+<li>Java：1.8.0</li>
+</ul>
+<h2 id="下载产品包"><a href="#下载产品包" class="headerlink" title="下载产品包"></a>下载产品包</h2><p>可通过 <code>wget</code> 方式直接下载到测试机，或<a href="https://archive.apache.org/dist/shardingsphere/5.2.1/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin.tar.gz">点此下载 apache-shardingsphere-5.2.1-shardingsphere-proxy-bin.tar.gz</a> 软件包后，手动上传至测试机。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">cd</span> /opt</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">wget https://archive.apache.org/dist/shardingsphere/5.2.1/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin.tar.gz</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="解压产品包"><a href="#解压产品包" class="headerlink" title="解压产品包"></a>解压产品包</h2><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">pwd</span></span> </span><br><span class="line">/opt</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">tar xf apache-shardingsphere-5.2.1-shardingsphere-proxy-bin.tar.gz</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">cd</span> apache-shardingsphere-5.2.1-shardingsphere-proxy-bin</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">ls</span></span></span><br><span class="line">LICENSE  NOTICE  README.txt  bin  conf  lib  licenses</span><br></pre></td></tr></table></figure>
+
+<h2 id="修改配置文件（server-yaml）"><a href="#修改配置文件（server-yaml）" class="headerlink" title="修改配置文件（server.yaml）"></a>修改配置文件（server.yaml）</h2><p>先对初始配置文件拷贝备份。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">pwd</span></span></span><br><span class="line">/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">cp</span> ./conf/server.yaml ./conf/server.yaml.bak</span></span><br></pre></td></tr></table></figure>
+
+<p>默认的配置文件将不能被直接使用，需要对<a href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-jdbc/yaml-config/mode/">运行模式</a>和<a href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/yaml-config/authentication/">权限配置</a>进行修改。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">pwd</span></span></span><br><span class="line">/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">vi ./conf/server.yaml</span></span><br><span class="line">--可将如下内容追加至 server.yaml 末尾</span><br><span class="line"></span><br><span class="line">mode:</span><br><span class="line">  type: Standalone</span><br><span class="line">  repository:</span><br><span class="line">    type: JDBC</span><br><span class="line"></span><br><span class="line">rules:</span><br><span class="line">  - !AUTHORITY</span><br><span class="line">    users:</span><br><span class="line">      - root@%:root</span><br><span class="line">      - sharding@:sharding</span><br><span class="line">    provider:</span><br><span class="line">      type: ALL_PERMITTED</span><br></pre></td></tr></table></figure>
+
+<h2 id="引入数据库驱动（可选）"><a href="#引入数据库驱动（可选）" class="headerlink" title="引入数据库驱动（可选）"></a>引入数据库驱动（可选）</h2><p>ShardingSphere 产品包内包含了 PostgreSQL 和 openGauss 数据库驱动。如需引入其他数据库驱动，如 MySQL，则需要单独处理。<br></p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">pwd</span></span></span><br><span class="line">/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">mkdir</span> ext-lib</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">wget https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.11/mysql-connector-java-8.0.11.jar -P ./ext-lib/</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">ls</span> ext-lib/</span></span><br><span class="line">mysql-connector-java-8.0.11.jar</span><br></pre></td></tr></table></figure>
+
+<h2 id="启动服务"><a href="#启动服务" class="headerlink" title="启动服务"></a>启动服务</h2><p>通过 <code>bin</code> 目录下的启动脚本启动服务。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">pwd</span></span></span><br><span class="line">/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">ls</span> ./bin</span></span><br><span class="line">start.bat  start.sh  stop.sh</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">./bin/start.sh</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">tail</span> -100f ./logs/stdout.log</span></span><br><span class="line">[INFO ] 2022-11-12 16:13:16.307 [main] o.a.s.d.p.c.l.PipelineContextManagerLifecycleListener - mode type is not Cluster, mode type=&#x27;Standalone&#x27;, ignore</span><br><span class="line">[INFO ] 2022-11-12 16:13:16.797 [main] o.a.s.p.frontend.ShardingSphereProxy - ShardingSphere-Proxy Standalone mode started successfully</span><br></pre></td></tr></table></figure>
+
+<p>启动成功后，查看服务对应的进程信息。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ps -ef|grep shardingsphere|grep -v grep</span></span><br><span class="line">root     30911     1 13 16:13 pts/1    00:00:10 /usr/local/jdk1.8.0_141/bin/java -Djava.awt.headless=true -server -Xmx2g -Xms2g -Xmn1g -Xss1m -XX:AutoBoxCacheMax=4096 -XX:+UseNUMA -XX:+DisableExplicitGC -XX:LargePageSizeInBytes=128m -XX:+UseConcMarkSweepGC -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=70 -Dio.netty.leakDetection.level=DISABLED -classpath /opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin/conf:/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin/conf:.:/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin/lib/*:/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin/ext-lib/* org.apache.shardingsphere.proxy.Bootstrap -1 /opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin/conf 0.0.0.0 false</span><br></pre></td></tr></table></figure>
+
+<h1 id="使用数据库客户端访问"><a href="#使用数据库客户端访问" class="headerlink" title="使用数据库客户端访问"></a>使用数据库客户端访问</h1><figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"># mysql <span class="operator">-</span>uroot <span class="operator">-</span>p <span class="operator">-</span>h127<span class="number">.0</span><span class="number">.0</span><span class="number">.1</span> <span class="operator">-</span>P3307</span><br><span class="line">Enter password:</span><br><span class="line">Welcome <span class="keyword">to</span> the MySQL monitor.  Commands <span class="keyword">end</span> <span class="keyword">with</span> ; <span class="keyword">or</span> \g.</span><br><span class="line">Your MySQL connection id <span class="keyword">is</span> <span class="number">5</span></span><br><span class="line">Server version: <span class="number">5.7</span><span class="number">.22</span><span class="operator">-</span>ShardingSphere<span class="operator">-</span>Proxy <span class="number">5.2</span><span class="number">.1</span></span><br><span class="line"></span><br><span class="line">Copyright (c) <span class="number">2000</span>, <span class="number">2022</span>, Oracle <span class="keyword">and</span><span class="operator">/</span><span class="keyword">or</span> its affiliates.</span><br><span class="line"></span><br><span class="line">Oracle <span class="keyword">is</span> a registered trademark <span class="keyword">of</span> Oracle Corporation <span class="keyword">and</span><span class="operator">/</span><span class="keyword">or</span> its</span><br><span class="line">affiliates. Other names may be trademarks <span class="keyword">of</span> their respective</span><br><span class="line">owners.</span><br><span class="line"></span><br><span class="line">Type <span class="string">&#x27;help;&#x27;</span> <span class="keyword">or</span> <span class="string">&#x27;\h&#x27;</span> <span class="keyword">for</span> help. Type <span class="string">&#x27;\c&#x27;</span> <span class="keyword">to</span> clear the <span class="keyword">current</span> input statement.</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> DATABASES;</span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> schema_name        <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> shardingsphere     <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> information_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> performance_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql              <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> sys                <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="number">5</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.02</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> </span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SELECT</span> version();</span><br><span class="line"><span class="operator">+</span><span class="comment">-----------------------------------+</span></span><br><span class="line"><span class="operator">|</span> version()                         <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">-----------------------------------+</span></span><br><span class="line"><span class="operator">|</span> <span class="number">5.7</span><span class="number">.22</span><span class="operator">-</span>ShardingSphere<span class="operator">-</span>Proxy <span class="number">5.2</span><span class="number">.1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">-----------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.02</span> sec)</span><br><span class="line">mysql<span class="operator">&gt;</span> \q</span><br><span class="line">Bye</span><br></pre></td></tr></table></figure>
+
+<h1 id="启动与关闭"><a href="#启动与关闭" class="headerlink" title="启动与关闭"></a>启动与关闭</h1><p>ShardingSphere-Proxy  服务启动和关闭的脚本位于 <code>./bin</code> 路径下。</p>
+<h2 id="启动"><a href="#启动" class="headerlink" title="启动"></a>启动</h2><p>使用以下脚本启动后，服务端口为 ShardingSphere-Proxy 的 3307 缺省端口。</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">./bin/start.sh</span><br></pre></td></tr></table></figure>
+
+<h2 id="关闭"><a href="#关闭" class="headerlink" title="关闭"></a>关闭</h2><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">./bin/stop.sh</span><br></pre></td></tr></table></figure>
+
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ShardingSphere-Prxoy 安装过程比较简单，准备好 Java 环境，获取安装包、解包、修改配置文件后即可启动服务。如果对接的数据库是 MySQL，建议在启动服务前引入 MySQL 驱动，否则需在重启服务后可识别驱动。</p>
+]]></content>
+      <tags>
+        <tag>ShardingSphere</tag>
+      </tags>
+  </entry>
+</search>

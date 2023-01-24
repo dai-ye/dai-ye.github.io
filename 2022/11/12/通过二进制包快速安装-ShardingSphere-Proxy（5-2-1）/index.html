@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/icon-200.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/icon-16.png">
+  <link rel="mask-icon" href="/images/icon-344.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":"flat","style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="借本地虚机环境安装 ShardingSphere-Proxy 5.2.1 机会，记录了安装过程，供大家参考。  ShardingSphere 支持多种安装方式，如通过二进制包、使用 Docker 或使用 Helm。本文档介绍如何通过二进制包快速构建 ShardingSphere-Proxy 测试环境，使用版本为 5.2.1。更详细的安装说明，请参考用户手册：使用二进制发布包安装 Sharding">
+<meta property="og:type" content="article">
+<meta property="og:title" content="通过二进制包快速安装 ShardingSphere-Proxy（5.2.1）">
+<meta property="og:url" content="http://example.com/2022/11/12/%E9%80%9A%E8%BF%87%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%8C%85%E5%BF%AB%E9%80%9F%E5%AE%89%E8%A3%85-ShardingSphere-Proxy%EF%BC%885-2-1%EF%BC%89/index.html">
+<meta property="og:site_name" content="代野博客">
+<meta property="og:description" content="借本地虚机环境安装 ShardingSphere-Proxy 5.2.1 机会，记录了安装过程，供大家参考。  ShardingSphere 支持多种安装方式，如通过二进制包、使用 Docker 或使用 Helm。本文档介绍如何通过二进制包快速构建 ShardingSphere-Proxy 测试环境，使用版本为 5.2.1。更详细的安装说明，请参考用户手册：使用二进制发布包安装 Sharding">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-11-12T15:28:56.000Z">
+<meta property="article:modified_time" content="2022-11-12T15:39:42.767Z">
+<meta property="article:author" content="代野">
+<meta property="article:tag" content="ShardingSphere">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/2022/11/12/%E9%80%9A%E8%BF%87%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%8C%85%E5%BF%AB%E9%80%9F%E5%AE%89%E8%A3%85-ShardingSphere-Proxy%EF%BC%885-2-1%EF%BC%89/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>通过二进制包快速安装 ShardingSphere-Proxy（5.2.1） | 代野博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">代野博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/11/12/%E9%80%9A%E8%BF%87%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%8C%85%E5%BF%AB%E9%80%9F%E5%AE%89%E8%A3%85-ShardingSphere-Proxy%EF%BC%885-2-1%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          通过二进制包快速安装 ShardingSphere-Proxy（5.2.1）
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-11-12 23:28:56 / 修改时间：23:39:42" itemprop="dateCreated datePublished" datetime="2022-11-12T23:28:56+08:00">2022-11-12</time>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>借本地虚机环境安装 ShardingSphere-Proxy 5.2.1 机会，记录了安装过程，供大家参考。</p>
+</blockquote>
+<p>ShardingSphere 支持多种安装方式，如通过二进制包、<a target="_blank" rel="noopener" href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/startup/docker/">使用 Docker</a> 或<a target="_blank" rel="noopener" href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/startup/helm/">使用 Helm</a>。本文档介绍如何通过二进制包快速构建 ShardingSphere-Proxy 测试环境，使用版本为 5.2.1。更详细的安装说明，请参考用户手册：<a target="_blank" rel="noopener" href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/startup/bin/">使用二进制发布包</a>安装 ShardingSphere-Proxy。</p>
+<h1 id="环境要求"><a href="#环境要求" class="headerlink" title="环境要求"></a>环境要求</h1><ul>
+<li>操作系统：Linux，Windows</li>
+<li>Java JRE：8 或以上版本</li>
+</ul>
+<h1 id="安装-ShardingSphere-Proxy"><a href="#安装-ShardingSphere-Proxy" class="headerlink" title="安装 ShardingSphere-Proxy"></a>安装 ShardingSphere-Proxy</h1><p>通过 5 个步骤完成快速安装：</p>
+<ol>
+<li>下载产品包</li>
+<li>解压产品包</li>
+<li>修改配置文件（server.yaml）</li>
+<li>引入数据库驱动</li>
+<li>启动服务</li>
+</ol>
+<span id="more"></span>
+
+<p>环境信息如下：</p>
+<ul>
+<li>配置：1c&#x2F;2g</li>
+<li>操作系统：CentOS 7.6</li>
+<li>Java：1.8.0</li>
+</ul>
+<h2 id="下载产品包"><a href="#下载产品包" class="headerlink" title="下载产品包"></a>下载产品包</h2><p>可通过 <code>wget</code> 方式直接下载到测试机，或<a target="_blank" rel="noopener" href="https://archive.apache.org/dist/shardingsphere/5.2.1/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin.tar.gz">点此下载 apache-shardingsphere-5.2.1-shardingsphere-proxy-bin.tar.gz</a> 软件包后，手动上传至测试机。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">cd</span> /opt</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">wget https://archive.apache.org/dist/shardingsphere/5.2.1/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin.tar.gz</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="解压产品包"><a href="#解压产品包" class="headerlink" title="解压产品包"></a>解压产品包</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">pwd</span></span> </span><br><span class="line">/opt</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">tar xf apache-shardingsphere-5.2.1-shardingsphere-proxy-bin.tar.gz</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">cd</span> apache-shardingsphere-5.2.1-shardingsphere-proxy-bin</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">ls</span></span></span><br><span class="line">LICENSE  NOTICE  README.txt  bin  conf  lib  licenses</span><br></pre></td></tr></table></figure>
+
+<h2 id="修改配置文件（server-yaml）"><a href="#修改配置文件（server-yaml）" class="headerlink" title="修改配置文件（server.yaml）"></a>修改配置文件（server.yaml）</h2><p>先对初始配置文件拷贝备份。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">pwd</span></span></span><br><span class="line">/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">cp</span> ./conf/server.yaml ./conf/server.yaml.bak</span></span><br></pre></td></tr></table></figure>
+
+<p>默认的配置文件将不能被直接使用，需要对<a target="_blank" rel="noopener" href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-jdbc/yaml-config/mode/">运行模式</a>和<a target="_blank" rel="noopener" href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/yaml-config/authentication/">权限配置</a>进行修改。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">pwd</span></span></span><br><span class="line">/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">vi ./conf/server.yaml</span></span><br><span class="line">--可将如下内容追加至 server.yaml 末尾</span><br><span class="line"></span><br><span class="line">mode:</span><br><span class="line">  type: Standalone</span><br><span class="line">  repository:</span><br><span class="line">    type: JDBC</span><br><span class="line"></span><br><span class="line">rules:</span><br><span class="line">  - !AUTHORITY</span><br><span class="line">    users:</span><br><span class="line">      - root@%:root</span><br><span class="line">      - sharding@:sharding</span><br><span class="line">    provider:</span><br><span class="line">      type: ALL_PERMITTED</span><br></pre></td></tr></table></figure>
+
+<h2 id="引入数据库驱动（可选）"><a href="#引入数据库驱动（可选）" class="headerlink" title="引入数据库驱动（可选）"></a>引入数据库驱动（可选）</h2><p>ShardingSphere 产品包内包含了 PostgreSQL 和 openGauss 数据库驱动。如需引入其他数据库驱动，如 MySQL，则需要单独处理。<br></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">pwd</span></span></span><br><span class="line">/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">mkdir</span> ext-lib</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">wget https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.11/mysql-connector-java-8.0.11.jar -P ./ext-lib/</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">ls</span> ext-lib/</span></span><br><span class="line">mysql-connector-java-8.0.11.jar</span><br></pre></td></tr></table></figure>
+
+<h2 id="启动服务"><a href="#启动服务" class="headerlink" title="启动服务"></a>启动服务</h2><p>通过 <code>bin</code> 目录下的启动脚本启动服务。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">pwd</span></span></span><br><span class="line">/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">ls</span> ./bin</span></span><br><span class="line">start.bat  start.sh  stop.sh</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">./bin/start.sh</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">tail</span> -100f ./logs/stdout.log</span></span><br><span class="line">[INFO ] 2022-11-12 16:13:16.307 [main] o.a.s.d.p.c.l.PipelineContextManagerLifecycleListener - mode type is not Cluster, mode type=&#x27;Standalone&#x27;, ignore</span><br><span class="line">[INFO ] 2022-11-12 16:13:16.797 [main] o.a.s.p.frontend.ShardingSphereProxy - ShardingSphere-Proxy Standalone mode started successfully</span><br></pre></td></tr></table></figure>
+
+<p>启动成功后，查看服务对应的进程信息。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ps -ef|grep shardingsphere|grep -v grep</span></span><br><span class="line">root     30911     1 13 16:13 pts/1    00:00:10 /usr/local/jdk1.8.0_141/bin/java -Djava.awt.headless=true -server -Xmx2g -Xms2g -Xmn1g -Xss1m -XX:AutoBoxCacheMax=4096 -XX:+UseNUMA -XX:+DisableExplicitGC -XX:LargePageSizeInBytes=128m -XX:+UseConcMarkSweepGC -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=70 -Dio.netty.leakDetection.level=DISABLED -classpath /opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin/conf:/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin/conf:.:/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin/lib/*:/opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin/ext-lib/* org.apache.shardingsphere.proxy.Bootstrap -1 /opt/apache-shardingsphere-5.2.1-shardingsphere-proxy-bin/conf 0.0.0.0 false</span><br></pre></td></tr></table></figure>
+
+<h1 id="使用数据库客户端访问"><a href="#使用数据库客户端访问" class="headerlink" title="使用数据库客户端访问"></a>使用数据库客户端访问</h1><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"># mysql <span class="operator">-</span>uroot <span class="operator">-</span>p <span class="operator">-</span>h127<span class="number">.0</span><span class="number">.0</span><span class="number">.1</span> <span class="operator">-</span>P3307</span><br><span class="line">Enter password:</span><br><span class="line">Welcome <span class="keyword">to</span> the MySQL monitor.  Commands <span class="keyword">end</span> <span class="keyword">with</span> ; <span class="keyword">or</span> \g.</span><br><span class="line">Your MySQL connection id <span class="keyword">is</span> <span class="number">5</span></span><br><span class="line">Server version: <span class="number">5.7</span><span class="number">.22</span><span class="operator">-</span>ShardingSphere<span class="operator">-</span>Proxy <span class="number">5.2</span><span class="number">.1</span></span><br><span class="line"></span><br><span class="line">Copyright (c) <span class="number">2000</span>, <span class="number">2022</span>, Oracle <span class="keyword">and</span><span class="operator">/</span><span class="keyword">or</span> its affiliates.</span><br><span class="line"></span><br><span class="line">Oracle <span class="keyword">is</span> a registered trademark <span class="keyword">of</span> Oracle Corporation <span class="keyword">and</span><span class="operator">/</span><span class="keyword">or</span> its</span><br><span class="line">affiliates. Other names may be trademarks <span class="keyword">of</span> their respective</span><br><span class="line">owners.</span><br><span class="line"></span><br><span class="line">Type <span class="string">&#x27;help;&#x27;</span> <span class="keyword">or</span> <span class="string">&#x27;\h&#x27;</span> <span class="keyword">for</span> help. Type <span class="string">&#x27;\c&#x27;</span> <span class="keyword">to</span> clear the <span class="keyword">current</span> input statement.</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> DATABASES;</span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> schema_name        <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> shardingsphere     <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> information_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> performance_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql              <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> sys                <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="number">5</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.02</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> </span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SELECT</span> version();</span><br><span class="line"><span class="operator">+</span><span class="comment">-----------------------------------+</span></span><br><span class="line"><span class="operator">|</span> version()                         <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">-----------------------------------+</span></span><br><span class="line"><span class="operator">|</span> <span class="number">5.7</span><span class="number">.22</span><span class="operator">-</span>ShardingSphere<span class="operator">-</span>Proxy <span class="number">5.2</span><span class="number">.1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">-----------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.02</span> sec)</span><br><span class="line">mysql<span class="operator">&gt;</span> \q</span><br><span class="line">Bye</span><br></pre></td></tr></table></figure>
+
+<h1 id="启动与关闭"><a href="#启动与关闭" class="headerlink" title="启动与关闭"></a>启动与关闭</h1><p>ShardingSphere-Proxy  服务启动和关闭的脚本位于 <code>./bin</code> 路径下。</p>
+<h2 id="启动"><a href="#启动" class="headerlink" title="启动"></a>启动</h2><p>使用以下脚本启动后，服务端口为 ShardingSphere-Proxy 的 3307 缺省端口。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./bin/start.sh</span><br></pre></td></tr></table></figure>
+
+<h2 id="关闭"><a href="#关闭" class="headerlink" title="关闭"></a>关闭</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./bin/stop.sh</span><br></pre></td></tr></table></figure>
+
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ShardingSphere-Prxoy 安装过程比较简单，准备好 Java 环境，获取安装包、解包、修改配置文件后即可启动服务。如果对接的数据库是 MySQL，建议在启动服务前引入 MySQL 驱动，否则需在重启服务后可识别驱动。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/ShardingSphere/" rel="tag"># ShardingSphere</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/" rel="prev" title="Sharding | 数据分片策略：分片键和分片算法的选择">
+      <i class="fa fa-chevron-left"></i> Sharding | 数据分片策略：分片键和分片算法的选择
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/11/15/ShardingSphere-MySQL-%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E%EF%BC%8C%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE%E6%BC%94%E7%A4%BA/" rel="next" title="ShardingSphere + MySQL 一主两从，静态读写分离配置演示">
+      ShardingSphere + MySQL 一主两从，静态读写分离配置演示 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%8E%AF%E5%A2%83%E8%A6%81%E6%B1%82"><span class="nav-number">1.</span> <span class="nav-text">环境要求</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-ShardingSphere-Proxy"><span class="nav-number">2.</span> <span class="nav-text">安装 ShardingSphere-Proxy</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%8B%E8%BD%BD%E4%BA%A7%E5%93%81%E5%8C%85"><span class="nav-number">2.1.</span> <span class="nav-text">下载产品包</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%A7%A3%E5%8E%8B%E4%BA%A7%E5%93%81%E5%8C%85"><span class="nav-number">2.2.</span> <span class="nav-text">解压产品包</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BF%AE%E6%94%B9%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%EF%BC%88server-yaml%EF%BC%89"><span class="nav-number">2.3.</span> <span class="nav-text">修改配置文件（server.yaml）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E5%85%A5%E6%95%B0%E6%8D%AE%E5%BA%93%E9%A9%B1%E5%8A%A8%EF%BC%88%E5%8F%AF%E9%80%89%EF%BC%89"><span class="nav-number">2.4.</span> <span class="nav-text">引入数据库驱动（可选）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%90%AF%E5%8A%A8%E6%9C%8D%E5%8A%A1"><span class="nav-number">2.5.</span> <span class="nav-text">启动服务</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E6%95%B0%E6%8D%AE%E5%BA%93%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%AE%BF%E9%97%AE"><span class="nav-number">3.</span> <span class="nav-text">使用数据库客户端访问</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%90%AF%E5%8A%A8%E4%B8%8E%E5%85%B3%E9%97%AD"><span class="nav-number">4.</span> <span class="nav-text">启动与关闭</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%90%AF%E5%8A%A8"><span class="nav-number">4.1.</span> <span class="nav-text">启动</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B3%E9%97%AD"><span class="nav-number">4.2.</span> <span class="nav-text">关闭</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">5.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="代野"
+      src="/images/photo.jpg">
+  <p class="site-author-name" itemprop="name">代野</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="mailto:daiyex@outlook.com" title="E-Mail → mailto:daiyex@outlook.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+  <div class="beian"><a href="https://beian.miit.gov.cn/" rel="noopener" target="_blank">京ICP备18010339号-3 </a>
+  </div>
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">代野</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

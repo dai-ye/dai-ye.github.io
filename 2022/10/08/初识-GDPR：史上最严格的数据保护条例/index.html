@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/icon-200.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/icon-16.png">
+  <link rel="mask-icon" href="/images/icon-344.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":"flat","style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="1 什么是 GDPR？GDPR 全称是 General Data Protection Regulation，译为《通用数据保护条例》，是欧盟 2016 年通过的条例，于 2018 年 5 月 25 日正式生效，旨在保护欧盟居民隐私，GDPR 详情见 https:&#x2F;&#x2F;gdpr-info.eu&#x2F;。 GDPR 面向所有收集、处理、储存、管理欧盟公民个人数据的企业，限制了这些企业收集与处理用户个人信息">
+<meta property="og:type" content="article">
+<meta property="og:title" content="初识 GDPR：史上最严格的数据保护条例">
+<meta property="og:url" content="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/index.html">
+<meta property="og:site_name" content="代野博客">
+<meta property="og:description" content="1 什么是 GDPR？GDPR 全称是 General Data Protection Regulation，译为《通用数据保护条例》，是欧盟 2016 年通过的条例，于 2018 年 5 月 25 日正式生效，旨在保护欧盟居民隐私，GDPR 详情见 https:&#x2F;&#x2F;gdpr-info.eu&#x2F;。 GDPR 面向所有收集、处理、储存、管理欧盟公民个人数据的企业，限制了这些企业收集与处理用户个人信息">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p0.png">
+<meta property="og:image" content="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p1.png">
+<meta property="og:image" content="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p2.png">
+<meta property="og:image" content="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p3.png">
+<meta property="og:image" content="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p4.png">
+<meta property="og:image" content="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p5.png">
+<meta property="og:image" content="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p6.png">
+<meta property="og:image" content="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p7.png">
+<meta property="article:published_time" content="2022-10-08T08:31:59.000Z">
+<meta property="article:modified_time" content="2022-10-08T08:54:14.708Z">
+<meta property="article:author" content="代野">
+<meta property="article:tag" content="数据安全">
+<meta property="article:tag" content="GDPR">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p0.png">
+
+<link rel="canonical" href="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>初识 GDPR：史上最严格的数据保护条例 | 代野博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">代野博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          初识 GDPR：史上最严格的数据保护条例
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-10-08 16:31:59 / 修改时间：16:54:14" itemprop="dateCreated datePublished" datetime="2022-10-08T16:31:59+08:00">2022-10-08</time>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p0.png" alt="p0.png"></p>
+<h1 id="1-什么是-GDPR？"><a href="#1-什么是-GDPR？" class="headerlink" title="1 什么是 GDPR？"></a>1 什么是 GDPR？</h1><p><strong>GDPR</strong> 全称是 General Data Protection Regulation，译为<strong>《通用数据保护条例》</strong>，是欧盟 2016 年通过的条例，于 2018 年 5 月 25 日正式生效，旨在保护欧盟居民隐私，GDPR 详情见 <a target="_blank" rel="noopener" href="https://gdpr-info.eu/">https://gdpr-info.eu/</a>。</p>
+<p>GDPR 面向所有<strong>收集、处理、储存、管理欧盟公民个人数据</strong>的企业，限制了这些企业收集与处理用户个人信息的权限，将个人信息的最终控制权交还给用户本人，凡涉及欧盟个人数据的行为，都可被 GDPR 所管辖。在个人数据保护方面，GDPR 是目前全球规定最为严格、处罚最为严厉的法规之一。</p>
+<p>GDPR 取代了欧盟在 1995 年推出的欧盟《数据保护指令》（又称“95 指令”），相比 95 指令，<strong>GDPR 增加了优化数据流向欧盟以外国家的管理办法，以及增强用户对其个人信息的控制</strong>。</p>
+<span id="more"></span>
+<p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p1.png" alt="p1.png"></p>
+<h1 id="2-GDPR-中需要关注的概念"><a href="#2-GDPR-中需要关注的概念" class="headerlink" title="2 GDPR 中需要关注的概念"></a>2 GDPR 中需要关注的概念</h1><p>GDPR 以最大的限度保护了欧盟公民的个人信息安全，<strong>在 GDPR 面前，可以说我们所能想到的擦边球操作以及常见的文字游戏基本都是苍白无力的</strong>，比如描述不够直白、关键声明内容位置不明显，导致用户没有清楚隐私政策，那就是服务商的问题。因此对于 GDPR 相关的定义，比如“个人信息”的范围等此类信息，相关组织需要严格按照 GDPR 中的规定进行执行，下面列出了一些初次了解 GDPR 需要关注的概念。</p>
+<p>建议参考原文定义描述：<a target="_blank" rel="noopener" href="https://gdpr-info.eu/art-4-gdpr/">https://gdpr-info.eu/art-4-gdpr/</a></p>
+<h2 id="个人信息"><a href="#个人信息" class="headerlink" title="个人信息"></a>个人信息</h2><p><strong>个人信息，PII</strong>(Personal Identifiable Information)，指任何指向一个已被识别或可被识别的自然人的信息。该自然人能够被<strong>直接</strong>或<strong>间接</strong>地识别。</p>
+<ul>
+<li><strong>直接标识</strong>：能够直接识别出自然人的信息，如：姓名、身份证号等。</li>
+<li><strong>间接标识</strong>：通过参照针对该自然人一个或多个如物理、生理、遗传、心理、经济、文化或社会身份的要素识别出自然人的信息。</li>
+</ul>
+<h2 id="敏感信息"><a href="#敏感信息" class="headerlink" title="敏感信息"></a>敏感信息</h2><ul>
+<li>禁止处理显示种族或民族血统、政治意见、宗教或哲学信仰或工会成员身份的个人数据，以及处理遗传数据、用于唯一识别自然人身份的生物测定数据、有关健康的数据或有关自然人的性生活或性取向的数据。禁止收集处理种族起源、政治意见、宗教或者哲学信仰、商会会员、基因、生物特征、健康状况、性生活等事项的特殊类别的个人数据。</li>
+</ul>
+<h2 id="管辖范围"><a href="#管辖范围" class="headerlink" title="管辖范围"></a>管辖范围</h2><ul>
+<li>数据控制者、数据处理者<strong>在欧盟有营业场所</strong>的，不论数据处理行为发生在欧盟还是境外。</li>
+<li>数据控制者、数据库处理者<strong>未在欧盟设立营业场所</strong>，但向欧盟的数据主体提供商品或者服务，或者被追踪的网络行为发生在欧盟的。</li>
+<li>虽然数据控制者、数据处理者未在欧盟设立营业场所，但是根据国际公法应当使用欧盟成员国法律的。第二种情形是典型的域外管辖，主要针对美国的互联网企业。</li>
+</ul>
+<h2 id="处罚规定"><a href="#处罚规定" class="headerlink" title="处罚规定"></a>处罚规定</h2><ul>
+<li>一般违法：罚款<strong>上限是 1000 万欧元</strong>，或者在承诺的情况下，最高为上一个财政年度**全球全年营业收入的 2%**（两者中取数额大者）。</li>
+<li>严重违法：罚款<strong>上限是 2000 万欧元</strong>，或者在承诺的情况下，最高为上一个财政年度**全球全年营业收入的 4%**（两者中取数额大者）。</li>
+</ul>
+<h2 id="获取用户同意（Consent）"><a href="#获取用户同意（Consent）" class="headerlink" title="获取用户同意（Consent）"></a>获取用户同意（Consent）</h2><ul>
+<li>如果用户的同意是一个包含其他事项的书面声明中作出的，则该书面说明中的同意请求应当<strong>具有明显的辨识度</strong>以便可以与其他事项区别，使用清楚、直白的语言，以<strong>容易理解且容易获取</strong>的方式呈现，否则视为无效。</li>
+<li>用户有权随时撤回其同意，同意的撤回不具有溯及以往的效力；同意的撤回应当和同意的作出一样容易。</li>
+<li>当<strong>儿童至少 16 岁</strong>时，其同意才可以是处理其个人数据的合法条件；如果儿童不满 16 岁，则只有当其监护人作出授权或者同意时，处理其个人数据才是合法的。</li>
+</ul>
+<h2 id="个人数据的收集、处理规则"><a href="#个人数据的收集、处理规则" class="headerlink" title="个人数据的收集、处理规则"></a>个人数据的收集、处理规则</h2><ol>
+<li><strong>用户为了一个或者多个明确目的，同意处理其个人数据。</strong></li>
+<li>为了履行用户与企业之间的合同必须处理其个人数据，或者为了基于用户请求而签订合同必须处理其个人数据。</li>
+<li>处理行为对于企业遵守其所负担的法律义务是必要的。</li>
+<li>处理个人数据是为了保护该用户或者其他自然人的重大利益。</li>
+<li>处理个人数据是为了公共利益。</li>
+<li>处理行为对于企业或者第三方所追求的<strong>合法利益</strong>目的是必要的，除非该利益屈从于需要保护其个人数据的自然人的立业或者基本权利和自由，尤其是当其是儿童时。</li>
+</ol>
+<h2 id="数据处理的七个原则"><a href="#数据处理的七个原则" class="headerlink" title="数据处理的七个原则"></a>数据处理的七个原则</h2><ol>
+<li><strong>合法、公平、透明原则</strong>。</li>
+<li><strong>目的限定原则</strong>：出于特定、明确、合法的目的收集个人数据，进一步处理不得有悖于前述目的，除非符合公共利益、科学研究等正当目的。</li>
+<li>数据<strong>最小化原则</strong>：所收集、处理的个人数据之于其处理目的，应当准确、相关、必要。</li>
+<li><strong>准确原则</strong>：确保个人数据是准确的，并在必要的情况下及时更新。</li>
+<li><strong>有限留存原则</strong>：除非符合公共利益、科学研究等正当目的，否则对个人数据的留存期限不能超过其处理目的。</li>
+<li><strong>完整、机密原则</strong>：用技术手段确保个人数据的安全，不被非法处理、窃取、损毁等。</li>
+<li><strong>责任原则</strong>：数据控制者应当对上述原则的落实情况承担责任并予以证明。</li>
+</ol>
+<h2 id="数据主体的八项权利"><a href="#数据主体的八项权利" class="headerlink" title="数据主体的八项权利"></a>数据主体的八项权利</h2><ol>
+<li>知情权（Right to be informed）</li>
+<li>访问权（Right of access）</li>
+<li>更正权（Right to rectfication）</li>
+<li>删除权（或“被遗忘权”，Right to erasure,or “right to be forgotten”）</li>
+<li>限制处理权（Right to restrcition of processing）</li>
+<li>可携带权（或迁移权，Right to data portability）</li>
+<li>反对权（Right to object）</li>
+<li>不受制于自动化决策（含画像）（Right not to be subject to automated decision-making,include profiling）</li>
+</ol>
+<h1 id="3-国内企业的合规驱动力"><a href="#3-国内企业的合规驱动力" class="headerlink" title="3 国内企业的合规驱动力"></a>3 国内企业的合规驱动力</h1><h2 id="内因"><a href="#内因" class="headerlink" title="内因"></a>内因</h2><ul>
+<li>海外业务扩张：全球化业务发展，扩展到欧盟市场。</li>
+<li>欧盟业务举足轻重：有一定的市场占有率，不考虑放弃欧盟的市场。</li>
+<li>竞争需要：行业内部的 PK，不放弃每一个抢占市场的机会。</li>
+</ul>
+<h2 id="外因"><a href="#外因" class="headerlink" title="外因"></a>外因</h2><ul>
+<li>国家层面的相关因素：大型国有企业在海外往往会成为监管的重点，避免信誉危机。</li>
+<li>欧盟合作伙伴要求：作为欧盟伙伴供应链的一环，同样需要符合 GDPR 的要求。</li>
+</ul>
+<h1 id="4-GDPR-落地流程参考表"><a href="#4-GDPR-落地流程参考表" class="headerlink" title="4 GDPR 落地流程参考表"></a>4 GDPR 落地流程参考表</h1><p>在企业 GDPR 合规过程中，不同部门会面临很多的执行问题，如<strong>法务</strong>侧会关注当前隐私政策是否符合要求？<strong>业务</strong>侧会关注哪些数据将不能再收集了？是否会影响业务效率？<strong>IT</strong> 侧会关注数据加密技术方案如何落地？以及暂时达不到要求的方面是否有折中方案？<strong>合规牵头方</strong>则会关注如何理出重点？以及如何引起高层重视并获得支持？等问题。</p>
+<p>以上具体的问题均可归纳到 GDPR 落地的九个阶段中，如下表。</p>
+<blockquote>
+<p>注：参考表概括了不同阶段需要关注的内容，它不是对法律的解释，也不是对 GDPR 规定的管制员或处理者的义务范围的解释，每一阶段背后都有更多细节值得研究。因此，<strong>应根据 GDPR 中描述的全部义务，以确认每个问题的合规情况。</strong></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1. 数据隐私影响评估（DPIA）阶段<br></td>
+<td>DPIA（Data Privacy Impact Assessment）有助于识别隐私风险并将其降至最低。与业务和合作伙伴组织中的利益相关者合作，记录个人数据处理如何符合 GDPR。在高风险情况下，GDPR 需要 DPIA。</td>
+</tr>
+<tr>
+<td>2. 个人数据清单确认阶段</td>
+<td>评估您有哪些个人数据以及这些数据存储在哪里。通过进行个人数据清点，您可以清楚地了解组织中使用的个人数据。</td>
+</tr>
+<tr>
+<td>3. 数据流分析阶段</td>
+<td>确定所有触及 GDPR 范围内数据的系统。绘制从入口到销毁的数据流，包括第三方流程。当您对组织的完整数据生命周期有了深入的了解时，数据映射可以帮助您确保适当地揭示所有风险。</td>
+</tr>
+<tr>
+<td>4. 风险评估阶段</td>
+<td>针对每个数据（包括数据库、文件系统和人员）的接触点的执行风险进行评估。您将评估当前的数据保护策略和流程，以及实施这些策略和程序的技术控制措施。例如，您是否有适当的控制措施来执行 GDPR 的跨境数据传输要求？确定风险较高的区域以及需要采取哪些措施来降低风险。</td>
+</tr>
+<tr>
+<td>5. 数据泄露过程审查阶段</td>
+<td>评估您的程序和控制，用以检测、报告和调查数据泄露。GDPR 对数据控制者和处理者提出了违规通知要求。例如，数据控制员必须在意识到违规行为后 72 小时内向监管当局报告违规行为，除非违规行为不太可能导致对自然人的权利和自由造成风险。</td>
+</tr>
+<tr>
+<td>6. 确定差距和补救计划阶段</td>
+<td>确定您将如何补救在风险评估中检测到的任何合规漏洞。确定风险较高且应首先解决的差距的优先顺序。补救计划可以包括：培训或招聘员工、流程或政策更改、法律合同以及实施新的技术控制。</td>
+</tr>
+<tr>
+<td>7. 批准预期结果阶段</td>
+<td>展示您的分析结果以及推荐的解决方案，以获得项目的支持和预算。您应该在项目的预期结果上得到管理层的认可和批准。</td>
+</tr>
+<tr>
+<td>8. 实施改进和补救计划阶段</td>
+<td>使用经过验证的实施方法执行项目，该方法包括定义、设计和实施阶段。</td>
+</tr>
+<tr>
+<td>9. 治理阶段（持续问责和 DPIA）</td>
+<td>建立流程以进行持续的 DPIA，并通过测试确保持续的合规性。最终形成体系化、平台化和自动化的治理手段。</td>
+</tr>
+</tbody></table>
+<h1 id="5-处罚案例统计"><a href="#5-处罚案例统计" class="headerlink" title="5 处罚案例统计"></a>5 处罚案例统计</h1><p>截止 2022 年 6 月 10 日，867 个企业&#x2F;组织&#x2F;个人共计被处罚 1200 次。从 2018 年开始，处罚次数逐年增加，2021 年处罚次数到达最高 455 次，可以预见 2022 年可能超 2021 年。</p>
+<h2 id="处罚金额最高的公司：亚马逊（欧洲）"><a href="#处罚金额最高的公司：亚马逊（欧洲）" class="headerlink" title="处罚金额最高的公司：亚马逊（欧洲）"></a>处罚金额最高的公司：亚马逊（欧洲）</h2><p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p2.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p2.png"></p>
+<p>（数据来源：欧洲各国 DPA 公开出发公告）</p>
+<p>以上单笔罚款均超过 2 千万欧元，IT 企业居多，其中亚马逊（欧洲）的处罚金额最高，达 7 亿欧元。</p>
+<h2 id="处罚金额最高的产业：工业和商业"><a href="#处罚金额最高的产业：工业和商业" class="headerlink" title="处罚金额最高的产业：工业和商业"></a>处罚金额最高的产业：工业和商业</h2><p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p3.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p3.png"><br>（数据来源：欧洲各国 DPA 公开出发公告）</p>
+<h2 id="被处罚次数最多的企业：Vodafone-Espana"><a href="#被处罚次数最多的企业：Vodafone-Espana" class="headerlink" title="被处罚次数最多的企业：Vodafone Espana"></a>被处罚次数最多的企业：Vodafone Espana</h2><p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p4.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p4.png"><br>（数据来源：欧洲各国 DPA 公开出发公告）</p>
+<p>15 个实体被处罚超过（含）5 次，76 个实体被处罚超过（含）2 次。其中 Vodafone Espana, S.A.U 被处罚次数最多，高达 46 次。其次是 Xfera Moviles S.A. 被处罚 16 次。</p>
+<h2 id="最易被处罚的违规行为统计"><a href="#最易被处罚的违规行为统计" class="headerlink" title="最易被处罚的违规行为统计"></a>最易被处罚的违规行为统计</h2><p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p5.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p5.png"><br>不论违法次数还是违法类型，不符合一般数据处理原则和数据处理的法律依据不足，均排在前 2 位。</p>
+<h2 id="最凶的-DPA-Data-Protection-Authority"><a href="#最凶的-DPA-Data-Protection-Authority" class="headerlink" title="最凶的 DPA(Data Protection Authority)"></a>最凶的 DPA(Data Protection Authority)</h2><p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p6.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p6.png"></p>
+<p>处罚金额排名第 1 的卢森堡 7.463 亿欧元，其中 7.46 亿罚款来自 Amazon。法国处罚 Google 共 4 次 2 亿欧元，Facebook 共 1 次 0.6 亿欧元，处罚金额 2.697 亿欧元排名第 2。</p>
+<p>处罚次数最多的的是西班牙，共 424 次，其次是意大利。</p>
+<h1 id="6-FAQ"><a href="#6-FAQ" class="headerlink" title="6 FAQ"></a>6 FAQ</h1><p>从以上内容来看，GDPR 既复杂又严格。为在短时间内进一步理解 GDPR，网络上收集了一些常见的问题如下。</p>
+<ol>
+<li><p><strong>因为 GDPR 的生效，相关服务商将不能再收集用户隐私数据了吗？</strong></p>
+<p> 不是的。在需遵循数据处理的七个原则前提下，服务商仍然可以收集用户隐私数据。</p>
+</li>
+<li><p><strong>公司注册在国内，GDPR 对公司有什么影响吗？</strong></p>
+<p> 需判断业务数据是否包含欧洲公民的数据。GDPR 要求所有<strong>设在欧洲的组织</strong>以及<strong>与欧洲利益相关的组织</strong>遵守其规定。GDPR是一个复杂的、全面的法规，它影响到组织内部的许多领域。由于这种复杂性，建议进行GDPR审计，以确保符合性，并防止对违规行为的严厉处罚。</p>
+<p> GDPR 适用于：1）在欧盟境内成立的任何一家从事个人数据处理活动的公司或实体，无论其数据处理活动是否发生在欧盟境内；或者 2）在欧盟境外成立的公司，只要其数据处理活动与向欧盟境内的个体提供产品或服务（不论是否收费）有关，或其数据处理行为涉及到监控欧盟境内个体的行为。</p>
+</li>
+<li><p><strong>GDPR 审计的好处有哪些？</strong></p>
+<p> 除了避免罚款、处罚和负面宣传外，成功的审计还提供了符合 GDPR 准则的文件证明。审计还可以改进和优化与组织内个人数据保护相关的流程。</p>
+</li>
+<li><p><strong>GDPR 合规自查大概包括哪些内容？</strong></p>
+<p> 主要是通过客观分析，来确定组织是否合规，以及如何满足 GDPR 要求。审查的领域包括正在处理的数据的性质、所进行的行业和活动类型、员工数量及其与数据保护相关的特征以及公司的组织和 IT 工具。</p>
+</li>
+<li><p><strong>GDPR 是否适用于公司相关的数据？</strong></p>
+<p> 不适用。这些规则仅适用于个体的个人数据，不涉及公司或任何其他法律实体的数据。但是，仅有一人的公司，其信息可构成个人数据，用于识别自然人。</p>
+</li>
+<li><p><strong>GDPR 是否适用于中小企业？</strong></p>
+<p> 适用。 <strong>数据保护条例的适用范围不取决于公司或机构的规模，而取决于其业务性质。</strong> 无论是由中小企业还是大公司进行对个人的权利和自由造成高风险的活动，都适用于更严格的规则。但是，GDPR 的某些义务可能不适用于所有中小企业。</p>
+<p> 例如，<strong>员工人数少于 250 人</strong>的公司，除非处理个人数据是主要业务，且对个人的权利和自由构成威胁，或涉及敏感数据或犯罪记录，否则<strong>无需保存数据处理记录</strong>。同样，对于任何中小企业，如果数据处理是其主要业务，特别是大规模数据处理会对个人的权利和自由（例如监控个人或处理敏感数据或犯罪记录）构成特殊威胁时，需要任命一名 <strong>数据保护官</strong> 。</p>
+</li>
+<li><p><strong>是否可以将数据用于「其他目的」？</strong></p>
+<p> 可以，但只有在某些情况下。如果您所在的公司或机构基于<strong>合法利益、合同</strong>或<strong>切身利益</strong>收集数据，则可在确认<strong>新目的与初始目的相符</strong>后，可将其用于其他目的。</p>
+<p> 如果您所在的公司或机构在<strong>征得数据主体同意后或按照法律要求</strong>进行了数据收集，则数据处理不得超出同意或法律规定所涵盖的范围。如需进行进一步处理，则必须重新征得数据主体的同意或获得新的法律依据。</p>
+</li>
+<li><p><strong>是否可以将数据用于「任何目的」？</strong></p>
+<p> 不可以。必须确定处理个人数据的目的，且必须通知数据主体。不得以暗示的方式告知个人数据会被收集和处理。这被称为“目的限制”原则。</p>
+</li>
+</ol>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>数据库安全与合规是一项长期的任务，想要深入理解 GDPR 并完成合规整改，并非一蹴而就。人力、时间和金钱均需投入，在理想的情况下，合规、运营效益和营收利润这三方面应是一个正三角形的状态，既合规，又不会给运营效果和利润营收带来过多的压力。</p>
+<p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p7.png" alt="202210071初识 GDPR：史上最严格的数据保护条例p7.png"></p>
+<h1 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h1><p><a target="_blank" rel="noopener" href="https://gdpr-info.eu/">[1] General Data Protection Regulation. 2016.</a></p>
+<p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/d-A4zpTEWt6xiH34vCWr0g">[2] 杨满月. 一文读懂 GDPR. 2021.</a></p>
+<p><a target="_blank" rel="noopener" href="https://dl.ccf.org.cn/video/videoDetail.html?id=5531122079533068">[3] 黄思维. GDPR 与中国企业的合规新实践. 2018.</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1fq4y1b78Z/?spm_id_from=333.1007.top_right_bar_window_history.content.click&vd_source=7ad99b8f04cc31bfc1c6509a18c58cde">[4] PunCha Fen. 从程序员角度看 GDPR. 2022. </a></p>
+<p><a target="_blank" rel="noopener" href="https://www.imperva.com/resources/wp-content/uploads/sites/6/ebooks/Imperva_GuidetoGDPRCompliance_06192020.pdf">[5] Imperva. The Road to Compliance: Steps for Securing Data to Comply with the GDPR. 2020.</a></p>
+<p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/38014002">[6] 伊夏. 欧盟《通用数据保护条例》GDPR浅析. 2018.</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1LY4y1G76Y/?spm_id_from=333.1007.top_right_bar_window_history.content.click&vd_source=7ad99b8f04cc31bfc1c6509a18c58cde">[7] Liu Yu. GDPR 处罚案例统计. 2022.</a></p>
+<p><a target="_blank" rel="noopener" href="https://dl.ccf.org.cn/article/articleDetail.html?type=xhtx_thesis&_ack=1&id=4672942986315776">[8] 毛得明，张位，郭得科. 关于《通用数据保护条例》的思考. 2019.</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%95%B0%E6%8D%AE%E5%AE%89%E5%85%A8/" rel="tag"># 数据安全</a>
+              <a href="/tags/GDPR/" rel="tag"># GDPR</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/" rel="prev" title="最后的防线：数据存储加密方案">
+      <i class="fa fa-chevron-left"></i> 最后的防线：数据存储加密方案
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/" rel="next" title="Sharding | 数据分片策略：分片键和分片算法的选择">
+      Sharding | 数据分片策略：分片键和分片算法的选择 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-%E4%BB%80%E4%B9%88%E6%98%AF-GDPR%EF%BC%9F"><span class="nav-number">1.</span> <span class="nav-text">1 什么是 GDPR？</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-GDPR-%E4%B8%AD%E9%9C%80%E8%A6%81%E5%85%B3%E6%B3%A8%E7%9A%84%E6%A6%82%E5%BF%B5"><span class="nav-number">2.</span> <span class="nav-text">2 GDPR 中需要关注的概念</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%AA%E4%BA%BA%E4%BF%A1%E6%81%AF"><span class="nav-number">2.1.</span> <span class="nav-text">个人信息</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%8F%E6%84%9F%E4%BF%A1%E6%81%AF"><span class="nav-number">2.2.</span> <span class="nav-text">敏感信息</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AE%A1%E8%BE%96%E8%8C%83%E5%9B%B4"><span class="nav-number">2.3.</span> <span class="nav-text">管辖范围</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A4%84%E7%BD%9A%E8%A7%84%E5%AE%9A"><span class="nav-number">2.4.</span> <span class="nav-text">处罚规定</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96%E7%94%A8%E6%88%B7%E5%90%8C%E6%84%8F%EF%BC%88Consent%EF%BC%89"><span class="nav-number">2.5.</span> <span class="nav-text">获取用户同意（Consent）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%AA%E4%BA%BA%E6%95%B0%E6%8D%AE%E7%9A%84%E6%94%B6%E9%9B%86%E3%80%81%E5%A4%84%E7%90%86%E8%A7%84%E5%88%99"><span class="nav-number">2.6.</span> <span class="nav-text">个人数据的收集、处理规则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86%E7%9A%84%E4%B8%83%E4%B8%AA%E5%8E%9F%E5%88%99"><span class="nav-number">2.7.</span> <span class="nav-text">数据处理的七个原则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E4%B8%BB%E4%BD%93%E7%9A%84%E5%85%AB%E9%A1%B9%E6%9D%83%E5%88%A9"><span class="nav-number">2.8.</span> <span class="nav-text">数据主体的八项权利</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-%E5%9B%BD%E5%86%85%E4%BC%81%E4%B8%9A%E7%9A%84%E5%90%88%E8%A7%84%E9%A9%B1%E5%8A%A8%E5%8A%9B"><span class="nav-number">3.</span> <span class="nav-text">3 国内企业的合规驱动力</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%85%E5%9B%A0"><span class="nav-number">3.1.</span> <span class="nav-text">内因</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A4%96%E5%9B%A0"><span class="nav-number">3.2.</span> <span class="nav-text">外因</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-GDPR-%E8%90%BD%E5%9C%B0%E6%B5%81%E7%A8%8B%E5%8F%82%E8%80%83%E8%A1%A8"><span class="nav-number">4.</span> <span class="nav-text">4 GDPR 落地流程参考表</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-%E5%A4%84%E7%BD%9A%E6%A1%88%E4%BE%8B%E7%BB%9F%E8%AE%A1"><span class="nav-number">5.</span> <span class="nav-text">5 处罚案例统计</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A4%84%E7%BD%9A%E9%87%91%E9%A2%9D%E6%9C%80%E9%AB%98%E7%9A%84%E5%85%AC%E5%8F%B8%EF%BC%9A%E4%BA%9A%E9%A9%AC%E9%80%8A%EF%BC%88%E6%AC%A7%E6%B4%B2%EF%BC%89"><span class="nav-number">5.1.</span> <span class="nav-text">处罚金额最高的公司：亚马逊（欧洲）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A4%84%E7%BD%9A%E9%87%91%E9%A2%9D%E6%9C%80%E9%AB%98%E7%9A%84%E4%BA%A7%E4%B8%9A%EF%BC%9A%E5%B7%A5%E4%B8%9A%E5%92%8C%E5%95%86%E4%B8%9A"><span class="nav-number">5.2.</span> <span class="nav-text">处罚金额最高的产业：工业和商业</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%A2%AB%E5%A4%84%E7%BD%9A%E6%AC%A1%E6%95%B0%E6%9C%80%E5%A4%9A%E7%9A%84%E4%BC%81%E4%B8%9A%EF%BC%9AVodafone-Espana"><span class="nav-number">5.3.</span> <span class="nav-text">被处罚次数最多的企业：Vodafone Espana</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%80%E6%98%93%E8%A2%AB%E5%A4%84%E7%BD%9A%E7%9A%84%E8%BF%9D%E8%A7%84%E8%A1%8C%E4%B8%BA%E7%BB%9F%E8%AE%A1"><span class="nav-number">5.4.</span> <span class="nav-text">最易被处罚的违规行为统计</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%80%E5%87%B6%E7%9A%84-DPA-Data-Protection-Authority"><span class="nav-number">5.5.</span> <span class="nav-text">最凶的 DPA(Data Protection Authority)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#6-FAQ"><span class="nav-number">6.</span> <span class="nav-text">6 FAQ</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">7.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE"><span class="nav-number">8.</span> <span class="nav-text">参考文献</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="代野"
+      src="/images/photo.jpg">
+  <p class="site-author-name" itemprop="name">代野</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="mailto:daiyex@outlook.com" title="E-Mail → mailto:daiyex@outlook.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+  <div class="beian"><a href="https://beian.miit.gov.cn/" rel="noopener" target="_blank">京ICP备18010339号-3 </a>
+  </div>
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">代野</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

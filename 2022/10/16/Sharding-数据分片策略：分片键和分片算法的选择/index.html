@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/icon-200.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/icon-16.png">
+  <link rel="mask-icon" href="/images/icon-344.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":"flat","style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="摘要：规划分片策略的过程需要考虑较多的问题，本文简单地概括了分片键应具有的特性，以及常见分片算法的特点。  Sharding 作为海量存储高并发沙场中的制胜利器，制定合理的 Sharding 策略会为系统提供强有力的性能保障，选择合适的分片键和分片算法，是分片策略规划中的重要工作。由于业务特点各不相同，分片键和分片算法的选择没有绝对统一的模板。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Sharding | 数据分片策略：分片键和分片算法的选择">
+<meta property="og:url" content="http://example.com/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/index.html">
+<meta property="og:site_name" content="代野博客">
+<meta property="og:description" content="摘要：规划分片策略的过程需要考虑较多的问题，本文简单地概括了分片键应具有的特性，以及常见分片算法的特点。  Sharding 作为海量存储高并发沙场中的制胜利器，制定合理的 Sharding 策略会为系统提供强有力的性能保障，选择合适的分片键和分片算法，是分片策略规划中的重要工作。由于业务特点各不相同，分片键和分片算法的选择没有绝对统一的模板。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/20221016-1-Sharding01.png">
+<meta property="og:image" content="http://example.com/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/20221016-1-Sharding02.png">
+<meta property="og:image" content="http://example.com/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/20221016-1-Sharding03.png">
+<meta property="article:published_time" content="2022-10-16T15:42:09.000Z">
+<meta property="article:modified_time" content="2022-10-16T15:46:14.411Z">
+<meta property="article:author" content="代野">
+<meta property="article:tag" content="Sharding">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/20221016-1-Sharding01.png">
+
+<link rel="canonical" href="http://example.com/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Sharding | 数据分片策略：分片键和分片算法的选择 | 代野博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">代野博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Sharding | 数据分片策略：分片键和分片算法的选择
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-10-16 23:42:09 / 修改时间：23:46:14" itemprop="dateCreated datePublished" datetime="2022-10-16T23:42:09+08:00">2022-10-16</time>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>摘要：规划分片策略的过程需要考虑较多的问题，本文简单地概括了分片键应具有的特性，以及常见分片算法的特点。</p>
+</blockquote>
+<p><img src="/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/20221016-1-Sharding01.png" alt="20221016-1-Sharding01">Sharding 作为海量存储高并发沙场中的制胜利器，制定合理的 Sharding 策略会为系统提供强有力的性能保障，选择合适的分片键和分片算法，是分片策略规划中的重要工作。<strong>由于业务特点各不相同，分片键和分片算法的选择没有绝对统一的模板。</strong></p>
+<span id="more"></span>
+<p>本文聚焦于分片键和分片算法话题，因此这里不再展开 Sharding 的概念，对于多数业务场景，分库分表的规划方案回顾如下：</p>
+<ul>
+<li><strong>数据量大，选分表；</strong></li>
+<li><strong>并发高，选分库；</strong></li>
+<li><strong>海量存储+高并发，分库+分表。</strong></li>
+</ul>
+<p><strong>何时去分表？</strong></p>
+<p>当潜意识里有要做分表的想法时，您当前或许遇到了单表过大、数据检索慢以及业务抱怨等问题，需要对系统进行优化。业内关于“单表过千万”、“数百 G”则需要分表的说法，其实不完全准确。以 MySQL 为例，生产中单表数千万记录并不是个例，它没有那么脆弱，合理的架构设计也可有效提升数据检索压力，如优化索引、历史数据归档、引入缓存方案以及启用读写分离策略等。</p>
+<p>当数据量激增，以上优化方案均不奏效时，那么是时候请“分表”出场了，单片容量无固定限制，结合测试结果，满足效率和预留空间需求即可。<strong>分表的时机不取决于经验之谈，而是取决于业务效率</strong>。</p>
+<p><strong>何时去分库？</strong></p>
+<p>分表概念外，还有一个概念是分库，也总是有朋友会纠结，我到底是否需要分库。分库的底层逻辑是，通过多台服务器来承接更多的业务流量，给系统提供更多的连接支持。因此，对于一个并发不高的系统，我们通过分表解决数据量大的问题即可，无需分库。如果业务发展迅猛，现有架构难以支撑更多的用户，则要考虑去做分库。可按照业务模块进行分库，也可以对大表进行跨库拆分。<strong>分库解决的是高并发的需求</strong>。</p>
+<p><strong>分库+分表</strong></p>
+<p>分库分表即分布式数据库解决方案，它<strong>解决了海量数据高并发业务场景下，单体数据库的计算效率、存储容量及扩展问题</strong>。</p>
+<p>Sharding 定位为利器的同时，它也存在一定的使用门槛，需要放弃一些数据库原生支持的能力，取舍由业务情况而定。由于 Sharding 相对复杂的特点，<strong>选择合适的分片键和分片策略，是分布式改造良好开端必不可少的两要素</strong>。</p>
+<h1 id="如何选择分片键（Sharding-Key）"><a href="#如何选择分片键（Sharding-Key）" class="headerlink" title="如何选择分片键（Sharding Key）"></a>如何选择分片键（Sharding Key）</h1><p>分片键也称为 <strong>Sharding key</strong>，是数据库拆分时的关键字段，我更愿把它理解为<strong>“锚点”</strong>，每一条数据都有自己的一个锚点，在对数据做 Sharding 的过程中，数据锚点的选择至关重要，直接影响我们对数据分而治之的效率。</p>
+<p>关于分片键的选择，我们需要<strong>选择具有共性的字段是最基本的要求，也是就尽量能覆盖绝大多数查询场景</strong>。同时分片键也应具有足够庞大的基数以及唯一性，从而使 Shard 可<strong>灵活规划</strong>，具备较好的扩展性。举个反例，如果选取布尔类型的字段为分片键，那么分片最多只能存在两份，这就陷入了非常尴尬的局面，基本失去了 Sharding 的意义。</p>
+<h2 id="分片键的选择建议"><a href="#分片键的选择建议" class="headerlink" title="分片键的选择建议"></a>分片键的选择建议</h2><ol>
+<li>选择具有共性的字段作为分片键，即查询中高频出现的条件字段；</li>
+<li>分片字段应具有高度离散的特点，分片键的内容不能被更新；</li>
+<li>可均匀各分片的数据存储和读写压力，避免片内出现热点数据；</li>
+<li>尽量减少单次查询所涉及的分片数量，降低数据库压力；</li>
+<li>最后，不要更换分片键，更换分片键需重分布数据，代价较大。</li>
+</ol>
+<h2 id="基因法-冗余数据"><a href="#基因法-冗余数据" class="headerlink" title="基因法+冗余数据"></a>基因法+冗余数据</h2><p>这里来思考一个在超大规模的电商场景中，使用订单 ID 和买家 ID 查询数据的问题。大规模电商场景每日会产生海量的交易订单，在这个场景中，我们选择使用订单 ID 作为分片键是一个没有异议的选择。那么此时，我们通过 APP 来查询自己的订单时，查询条件变为了分片键之外的买家 ID，默认情况下，查询语句中不带有分片键会导致全路由情况。面对这样的情况，应如何设计一个高效的分片策略？</p>
+<p>大厂常常使用的方案是基因法，即<strong>将买家 ID 融入到订单 ID 中，作为订单 ID 后缀</strong>。这样，指定买家的所有订单就会与其订单在同一分片内了，如下图所示。</p>
+<p><img src="/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/20221016-1-Sharding02.png" alt="基因法"></p>
+<blockquote>
+<p>最终订单 ID：原始订单 ID+买家 ID % 100 –&gt;20221016150810789<strong>01</strong></p>
+</blockquote>
+<p>本文的编写时间是 2022 年 10 月中旬，当前淘宝订单编号是 19 位数字，如果现在方便看下您的淘宝的订单，会发现所有订单编号后 6 位是完全一样的，这正是使用基因法分片键的方案。</p>
+<p>最后再加一个问题，电商场景除了订单和买家外，还有一个高频条件是卖家 ID，如果想按照卖家 ID 查询数据又该如何处理？</p>
+<p>可以考虑做数据冗余的方案，即广播表（或克隆表）技术，在每个片上都存有一份相同的卖家数据，用空间换取效率。对于超大规模的电商场景，使用基因法+冗余数据的方案即可处理绝大部分订单、买家和卖家的请求。对于其他检索条件以及大型卖家的场景，补充参考如下。</p>
+<ol>
+<li>对于检索条件不包含订单 ID、买家 ID 和 卖家 ID 的查询，使用 ES 方案解决；</li>
+<li>对于大型卖家的数据，可规划单独的库&#x2F;表，或进一步拆分映射成多个虚拟商家，来避免热点。</li>
+</ol>
+<h1 id="分片算法"><a href="#分片算法" class="headerlink" title="分片算法"></a>分片算法</h1><p>常见分片算法如 Hash、Range 和 List，用户也可以组合使用，或考虑结合业务定制分片算法。分片是为了让请求检索较少的数据和承载更多的流量，因此<strong>访问流量可均分、数据处理可并行、热点数据能规避</strong>，是比较理想的分片。在海量数据库高并发场景中，使用相对较多的分片算法是 Hash。</p>
+<ul>
+<li><p><strong>Hash</strong></p>
+<p>在海量数据库高并发的 OLTP 业务中，选择 Hash 算法相对更合适，它会将数据相对均匀的分布在各分片中，可有效规避热点问题。</p>
+<p>虽然 Hash 方案成为多数场景中被青睐的方案，但跨片操作和分片扩缩容是 Hash 需面对的挑战。</p>
+</li>
+<li><p><strong>Range</strong></p>
+<p>按照字段的取值范围对数据进行分片，对于范围条件的数据检索有较高的性能优势，基于 Range 的分片扩容也非常容易。</p>
+<p>在分布式架构中，Range 相对 Hash 没有那么通用化，热点问题是最大的劣势，它适合数据体量较大且并发不高的场景，比如离线检索。</p>
+</li>
+<li><p><strong>List</strong></p>
+<p>对于需要枚举值的业务场景中，List 算法是合适的选择，如基于地区或基于币种的业务，数据有明确的存储位置，单片失效不会影响全局业务。显而易见的是无法避免热点问题。</p>
+</li>
+</ul>
+<p>三种分片算法特点总结如下表。</p>
+<table>
+<thead>
+<tr>
+<th align="center"></th>
+<th align="center">分片算法</th>
+<th align="center">优势</th>
+<th align="center">劣势</th>
+<th align="center">适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">1</td>
+<td align="center">Hash</td>
+<td align="center">数据分布均匀<br>流量访问均匀</td>
+<td align="center">跨片效率低<br>分片扩容难</td>
+<td align="center">在线，数据量大且并发高</td>
+</tr>
+<tr>
+<td align="center">2</td>
+<td align="center">Range<br></td>
+<td align="center">高效范围查询<br>分片扩容简单</td>
+<td align="center">数据热点问题</td>
+<td align="center">离线，数据量大且并发少</td>
+</tr>
+<tr>
+<td align="center">3</td>
+<td align="center">List</td>
+<td align="center">数据可用性高<br>分片扩容简单<br></td>
+<td align="center">数据热点问题</td>
+<td align="center">适用枚举值类型的业务场景</td>
+</tr>
+</tbody></table>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>规划分片策略的过程需要考虑较多的问题，本文只是在皮毛层面进行了概括。回到开篇，分片策略的规划<strong>不能脱离业务</strong>，它没有统一的模板。理想的分片策略应尽量满足<strong>访问流量可均分、数据处理可并行、热点数据能规避</strong>。最后，总结一张脑图供参考。</p>
+<p><img src="/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/20221016-1-Sharding03.png" alt="分片策略"></p>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><p><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/217568?utm_source=related_read&utm_medium=article&utm_term=related_read">[1] 李玥. MySQL存储海量数据的最后一招：分库分表. 2020.</a></p>
+<p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/WffHugBp8tZtmPxcI6tcBw">[2] 韩锋. 小白入门，如何选择数据分片字段. 2022.</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1rG4y1W7s9/?spm_id_from=0.0.header_right.history_list.click&vd_source=7ad99b8f04cc31bfc1c6509a18c58cde">[3] 程序员囧辉. 日千万级的订单系统分库分表核心内容. 2022.</a></p>
+<p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/Bwwf-brPCmtDMBtdsfWmdA">[4] 初八,JefferyXin. 干货 | 支持10X增长，携程机票订单库Sharding实践. 2022.</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Sharding/" rel="tag"># Sharding</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/" rel="prev" title="初识 GDPR：史上最严格的数据保护条例">
+      <i class="fa fa-chevron-left"></i> 初识 GDPR：史上最严格的数据保护条例
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/11/12/%E9%80%9A%E8%BF%87%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%8C%85%E5%BF%AB%E9%80%9F%E5%AE%89%E8%A3%85-ShardingSphere-Proxy%EF%BC%885-2-1%EF%BC%89/" rel="next" title="通过二进制包快速安装 ShardingSphere-Proxy（5.2.1）">
+      通过二进制包快速安装 ShardingSphere-Proxy（5.2.1） <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E9%80%89%E6%8B%A9%E5%88%86%E7%89%87%E9%94%AE%EF%BC%88Sharding-Key%EF%BC%89"><span class="nav-number">1.</span> <span class="nav-text">如何选择分片键（Sharding Key）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%86%E7%89%87%E9%94%AE%E7%9A%84%E9%80%89%E6%8B%A9%E5%BB%BA%E8%AE%AE"><span class="nav-number">1.1.</span> <span class="nav-text">分片键的选择建议</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9F%BA%E5%9B%A0%E6%B3%95-%E5%86%97%E4%BD%99%E6%95%B0%E6%8D%AE"><span class="nav-number">1.2.</span> <span class="nav-text">基因法+冗余数据</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95"><span class="nav-number">2.</span> <span class="nav-text">分片算法</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">4.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="代野"
+      src="/images/photo.jpg">
+  <p class="site-author-name" itemprop="name">代野</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="mailto:daiyex@outlook.com" title="E-Mail → mailto:daiyex@outlook.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+  <div class="beian"><a href="https://beian.miit.gov.cn/" rel="noopener" target="_blank">京ICP备18010339号-3 </a>
+  </div>
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">代野</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

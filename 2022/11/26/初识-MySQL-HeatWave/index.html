@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/icon-200.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/icon-16.png">
+  <link rel="mask-icon" href="/images/icon-344.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":"flat","style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="MySQL 作为全球最欢迎的数据库，已在交易场景叱咤风云多年。在 2020 年底，OCI（Oracle Cloud Infrastructure）推出了一个黑科技插件，它弥补了 MySQL 在分析场景的短板，Oracle 官方称它比 Aurora 快 1400 倍，比 Redshift 快 6.5 倍，而且还能以二分之一的成本完成这些工作，它就是 MySQL HeatWave。 目前网络上关于 M">
+<meta property="og:type" content="article">
+<meta property="og:title" content="初识 MySQL HeatWave">
+<meta property="og:url" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/index.html">
+<meta property="og:site_name" content="代野博客">
+<meta property="og:description" content="MySQL 作为全球最欢迎的数据库，已在交易场景叱咤风云多年。在 2020 年底，OCI（Oracle Cloud Infrastructure）推出了一个黑科技插件，它弥补了 MySQL 在分析场景的短板，Oracle 官方称它比 Aurora 快 1400 倍，比 Redshift 快 6.5 倍，而且还能以二分之一的成本完成这些工作，它就是 MySQL HeatWave。 目前网络上关于 M">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/1-mhw-overview.png">
+<meta property="og:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/2-mhw-arch.png">
+<meta property="og:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/4-mhw-engine.png">
+<meta property="og:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/5-mhw-cloud.png">
+<meta property="og:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/6-mhw-hy.png">
+<meta property="og:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/7-mhw-local.png">
+<meta property="og:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/10-mhw-tpc-h.png">
+<meta property="og:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/14-cost.png">
+<meta property="og:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/11-mhw-oci-aws.png">
+<meta property="og:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/12-mhw-console.png">
+<meta property="og:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/13-mhw-odsa.png">
+<meta property="article:published_time" content="2022-11-26T09:17:07.000Z">
+<meta property="article:modified_time" content="2022-11-26T10:44:03.273Z">
+<meta property="article:author" content="代野">
+<meta property="article:tag" content="MySQL">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/1-mhw-overview.png">
+
+<link rel="canonical" href="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>初识 MySQL HeatWave | 代野博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">代野博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          初识 MySQL HeatWave
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-11-26 17:17:07 / 修改时间：18:44:03" itemprop="dateCreated datePublished" datetime="2022-11-26T17:17:07+08:00">2022-11-26</time>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>MySQL 作为全球最欢迎的数据库，已在交易场景叱咤风云多年。在 2020 年底，OCI（Oracle Cloud Infrastructure）推出了一个黑科技插件，它弥补了 MySQL 在分析场景的短板，Oracle 官方称它比 Aurora 快 1400 倍，比 Redshift 快 6.5 倍，而且还能以二分之一的成本完成这些工作，它就是 MySQL HeatWave。</p>
+<p>目前网络上关于 MySQL HeatWave 的资料相对较少，我通过已有的资料和 B 站公开课视频初探 MySQL HeatWave，梳理出本篇笔记。</p>
+<p>本文发布时间为 2022 年 11 月，由于产品更新的客观情况，本文部分信息会存在实效性，请以官方文档为准。（<a target="_blank" rel="noopener" href="https://dev.mysql.com/doc/heatwave/en/heatwave-introduction.html">https://dev.mysql.com/doc/heatwave/en/heatwave-introduction.html</a>)</p>
+<h1 id="MySQL-HeatWave-简介"><a href="#MySQL-HeatWave-简介" class="headerlink" title="MySQL HeatWave 简介"></a>MySQL HeatWave 简介</h1><p>MySQL HeatWave 是一个内置高性能内存查询加速器的 MySQL 云服务。借助该服务，我们无需对当前应用进行任何更改，即可将混合工作负载的 MySQL 性能提高数个量级。</p>
+<p>相比传统的分析场景，MySQL HeatWave 可以让用户无需再使用单独的分析数据库、单独的机器学习 (ML) 工具以及提取、转换和加载（ETL）复制。同时，借助 MySQL HeatWave 机器学习，开发人员和数据分析师可以在 MySQL HeatWave 中构建、训练、部署和解释机器学习模型，无需将数据迁移到单独的机器学习服务中。</p>
+<p>目前 MySQL HeatWave  可在 OCI（Oracle Cloud Infrastructure）、AWS（Amazon Web Services）和 Microsoft Azure 上使用。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/1-mhw-overview.png" alt="heatwave-overview"></p>
+<span id="more"></span>
+
+<p>MySQL HeatWave 可以附加到 MDS（MySQL Database Service）来支持分析类查询，它不会暴露给应用程序。MySQL HeatWave 的数据库是以列存形式存储在内存当中。</p>
+<p>简单了解 MySQL HeatWave，首先了解如下三条内容即可：</p>
+<ol>
+<li>使用<strong>同一个 MySQL</strong> 数据库来支持 OLTP 和 OLAP；</li>
+<li>数据以分区的方式存储在<strong>内存</strong>中；</li>
+<li>应用程序<strong>无需做任何更改</strong>。</li>
+</ol>
+<h1 id="MySQL-HeatWave-技术架构"><a href="#MySQL-HeatWave-技术架构" class="headerlink" title="MySQL HeatWave 技术架构"></a>MySQL HeatWave 技术架构</h1><h2 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h2><p>MySQL HeatWave 的架构如下图所示，它以一个插件的形式存在于整个 MySQL 数据库系统当中，它不会直接面对应用程序，可以理解为 MySQL HeatWave 挂在了 MDS 之下，用户无需修改原有的数据访问方式。</p>
+<p>MySQL HeatWave 插件对应着若干个 MySQL HeatWave Node。MySQL HeatWave 的数据在内存中以列存的方式存储，其持久化的数据是存放在对象存储中，可在 Node 失效后快速完成恢复。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/2-mhw-arch.png" alt="2-mhw-arch.png"></p>
+<h2 id="列存"><a href="#列存" class="headerlink" title="列存"></a>列存</h2><p>HeatWave 的数据以列存方式存储在内存中，便于向量化处理，同时数据在加载到内存前会进行编码和压缩，可提高性能和减少内存占用，从而降低客户的成本。</p>
+<p>![3-mhw-columnar in-memory.png](3-mhw-columnar in-memory.png)</p>
+<ol>
+<li>基于行存数据做水平分区，基于水平分区，可以将查询在节点级并行执行来加速 scan、join、group-by、aggr 和 top-k 等算子，同时分区规划是与底层 RAPID 定制化硬件适配的。</li>
+<li>分区内部将数据按照schema定义组织成列式存储，以引入向量化执行，每个向量化计算的单位是16KiB 的 vector，各列对应行的vector组合在一起成为 chunk，每个 partition 会有多个 chunks。</li>
+<li>为了适配 DMS，vector 又划分为多个 tile，每 64 行组成一个tile作为数据传输的最小单元。</li>
+<li>为了减少内存的使用，所有存储的数据都会做编码或压缩。</li>
+</ol>
+<h1 id="MySQL-HeatWave-功能"><a href="#MySQL-HeatWave-功能" class="headerlink" title="MySQL HeatWave 功能"></a>MySQL HeatWave 功能</h1><p>以下内容摘自 Oracle 官网，地址为 <a target="_blank" rel="noopener" href="https://www.oracle.com/mysql/#rc30p6">https://www.oracle.com/mysql/#rc30p6</a></p>
+<ul>
+<li><p><strong>一个 MySQL 数据库满足 OLTP 和 OLAP 两种需求</strong></p>
+<ul>
+<li>对 ETL 无依赖</li>
+<li>提供实时分析</li>
+<li>增强安全性</li>
+<li>无需修改应用程序</li>
+<li>支持 MySQL 数据库所支持的 BI 和数据可视化工具</li>
+<li>可在公有云和用户的数据中心使用</li>
+</ul>
+</li>
+<li><p><strong>高性能内存查询加速器</strong></p>
+<ul>
+<li>采用大规模扩展和高性能架构设计</li>
+<li>针对云进行了优化</li>
+<li>针对高事务处理量和连接进行了优化</li>
+</ul>
+</li>
+<li><p><strong>In-database 机器学习</strong></p>
+<ul>
+<li>无需额外的机器学习服务</li>
+<li>利用机器学习生命周期自动化，节省时间并减轻工作量</li>
+<li>可解释的机器学习模型</li>
+</ul>
+</li>
+<li><p><strong>MySQL 自动驾驶</strong></p>
+<ul>
+<li>自动配置</li>
+<li>自动线程池</li>
+<li>自动分片预测</li>
+<li>自动编码</li>
+<li>自动查询计划优化</li>
+<li>自动数据安置</li>
+</ul>
+</li>
+<li><p><strong>MySQL 湖仓一体（beta）</strong></p>
+<ul>
+<li>TPC-H 性能优于同类产品</li>
+<li>快速分析所有数据</li>
+<li>可扩展的管理、处理数据架构</li>
+<li>机器学习驱动自动优化，提升性能并节省时间</li>
+</ul>
+</li>
+<li><p><strong>实时弹性</strong></p>
+<ul>
+<li>在高峰时间始终保持稳定的高性能，成本更低且无停机时间</li>
+<li>避免过度预配实例</li>
+</ul>
+</li>
+<li><p><strong>全托管数据库服务</strong></p>
+<ul>
+<li>由 MySQL 工程团队开发、管理和提供支持</li>
+<li>MySQL HeatWave 交互式控制台：管理资源、运行查询和监视性能</li>
+</ul>
+</li>
+<li><p><strong>高级安全性</strong></p>
+<ul>
+<li>通过密钥生成和数字签名进行非对称加密</li>
+<li>数据脱敏</li>
+<li>SQL 白名单</li>
+</ul>
+</li>
+</ul>
+<h1 id="MySQL-HeatWave-工作原理"><a href="#MySQL-HeatWave-工作原理" class="headerlink" title="MySQL HeatWave 工作原理"></a>MySQL HeatWave 工作原理</h1><ol>
+<li><strong>RAPID 引擎支持语句中相关函数；</strong></li>
+<li><strong>RAPID 引擎执行时间评估少于 InnoDB 的执行时间。</strong></li>
+</ol>
+<p>当同时满足以上两个条件时，将由 RAPID 引擎，也就是 MySQL HeatWave 来处理相关业务请求。</p>
+<p>在启用 MySQL HeatWave 插件后，对于接收到的请求，MDS 会通过两个条件来判断该请求是否走 RAPID 引擎，MySQL HeatWave 所使用的引擎是 RAPID，在研发阶段 MySQL HeatWave 的名字就是“RAPID”。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/4-mhw-engine.png" alt="4-mhw-engine.png"></p>
+<h1 id="MySQL-HeatWave-数据加载"><a href="#MySQL-HeatWave-数据加载" class="headerlink" title="MySQL HeatWave 数据加载"></a>MySQL HeatWave 数据加载</h1><h2 id="加载方式"><a href="#加载方式" class="headerlink" title="加载方式"></a>加载方式</h2><p>对于 MySQL HeatWave 的数据，可通过如下三种方式进行加载：</p>
+<ol>
+<li>手动加载数据，每次加载一张表；</li>
+<li>通过自动并行方式加载数据，通过 Autopilot 的方式可并行执行，效率较高；</li>
+<li>通过 MySQL HeatWave 的控制台，以可视化的操作来完成数据加载，这种方式目前仅限在 AWS 上进行操作。没错，这里确实是只有 AWS 支持 MySQL HeatWave 控制台，AWS 快了 OCI 一步。</li>
+</ol>
+<p>在初次数据加载时可能会耗时久一些，在完成数据加载后，MySQL HeatWave 会自动地保持与 InnoDB 数据一致，这里值得关注的是，<strong>自动同步变更数据的模式是异步的，最多可能要用户接受 200ms 的数据延迟，也就是说 MDS 上的数据变更不会等待 MySQL HeatWave 的反馈</strong>。</p>
+<h2 id="同步方式"><a href="#同步方式" class="headerlink" title="同步方式"></a>同步方式</h2><p>MDS 会根据如下策略对数据进行同步：</p>
+<ol>
+<li>每 200 ms；</li>
+<li>当变更传输缓冲区达到 64MB 时；</li>
+<li>在 MDS 中，经过 DML 变更的数据被后续的 HeatWave 查询需要读取时。</li>
+</ol>
+<h1 id="MySQL-HeatWave-部署方式"><a href="#MySQL-HeatWave-部署方式" class="headerlink" title="MySQL HeatWave 部署方式"></a>MySQL HeatWave 部署方式</h1><h2 id="公有云"><a href="#公有云" class="headerlink" title="公有云"></a>公有云</h2><p>MySQL HeatWave  可支持在 OCI（Oracle Cloud Infrastructure）、AWS（Amazon Web Services）和 Microsoft Azure 上使用。</p>
+<p>所需的 HeatWave 节点数取决于数据大小，OCI 和 Azure   最多支持 64 个节点。在亚马逊网络服务（AWS）上，一个HeatWave集群最多支持128个 节点。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/5-mhw-cloud.png" alt="5-mhw-cloud.png"></p>
+<h2 id="混合部署"><a href="#混合部署" class="headerlink" title="混合部署"></a>混合部署</h2><p>混合部署是指本地部署 OLTP + 云端部署 OLAP 的方式，在这种混合部署中，客户可以使用 MySQL 复制将本地 MySQL 数据复制到 OCI 或 AWS 的 MySQL HeatWave，而无需通过 ETL 来满足分析业务需求。</p>
+<p>这种<strong>混合部署方式需要考虑数据延迟情况</strong>，在“数据加载”中已介绍，InnoDB 和 HeatWave 间数据是异步进行传输的，加上网络的延迟，需要考虑数据的实时性问题。据了解目前中国区没有 MySQL HeatWave。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/6-mhw-hy.png" alt="6-mhw-hy.png"></p>
+<h2 id="本地部署"><a href="#本地部署" class="headerlink" title="本地部署"></a>本地部署</h2><p>OCI 支持部署在用户的数据中心，可满足合规要求，让数据驻留在用户的数据中心。这样的部署方式具备以下特点：</p>
+<ol>
+<li>具有独立的 OCI 云区域，由 Oracle 托管；</li>
+<li>满足数据驻留在用户数据中心的需求；</li>
+<li>满足低延迟的需求。</li>
+</ol>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/7-mhw-local.png" alt="7-mhw-local.png"></p>
+<h1 id="MySQL-HeatWave-性价比"><a href="#MySQL-HeatWave-性价比" class="headerlink" title="MySQL HeatWave 性价比"></a>MySQL HeatWave 性价比</h1><p>MySQL HeatWave 和 Amazon Redshift 「最快的实例」进行性能对比，对 19 次 TPC-H 测试结果进行几何平均计算后，MySQL HeatWave 比 Amazon Redshift 速度快 2.7 倍，成本仅为 Amazon Redshift 的三分之一。</p>
+<p>![8-mhw-Amazon Redshift1.png](8-mhw-Amazon Redshift1.png)</p>
+<p>MySQL HeatWave 和 Amazon Redshift 「低成本实例」进行性能对比，MySQL HeatWave  性能上要领先 Amazon Redshift 17 倍以上，投入成本持平。</p>
+<p>![9-mhw-Amazon Redshift2.png](9-mhw-Amazon Redshift2.png)</p>
+<p>从官方公布的性价比数据看，相比图上其他几款产品，MySQL HeatWave 性价比最高。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/10-mhw-tpc-h.png" alt="10-mhw-tpc-h.png"></p>
+<h1 id="MySQL-HeatWave-费用"><a href="#MySQL-HeatWave-费用" class="headerlink" title="MySQL HeatWave 费用"></a>MySQL HeatWave 费用</h1><p>在 Oracle 公益课堂中，我们可以了解到 MySQL HeatWave 的大概使用成本，对于这张图我们只需要关注下半部分，<strong>对于 2T 数据量的环境，每月的成本约为 1260 美元</strong>。</p>
+<p>其中包括了 MDS 费用、MDS 存储的费用和 HeatWave 的费用。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/14-cost.png" alt="14-cost.png"></p>
+<h1 id="MySQL-HeatWave-多云差异"><a href="#MySQL-HeatWave-多云差异" class="headerlink" title="MySQL HeatWave 多云差异"></a>MySQL HeatWave 多云差异</h1><h2 id="OCI-和-AWS"><a href="#OCI-和-AWS" class="headerlink" title="OCI 和 AWS"></a>OCI 和 AWS</h2><p>HeatWave 在 OCI 和 AWS 两朵云的 Roadmap 上的差异是比较有趣的，前面已提到可视化的数据加载只能通过 AWS 来完成，不只是这项能力，通过下图来看，AWS 在用户体验上要优于 OCI。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/11-mhw-oci-aws.png" alt="11-mhw-oci-aws.png"></p>
+<p>(<a target="_blank" rel="noopener" href="https://www.oracle.com/mysql/#roadmap">https://www.oracle.com/mysql/#roadmap</a>)</p>
+<p>在 OCI 中需要使用控制台时，将会跳转到 AWS。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/12-mhw-console.png" alt="12-mhw-console.png"></p>
+<h2 id="Azure"><a href="#Azure" class="headerlink" title="Azure"></a>Azure</h2><p>对于 Azure 用户，仍然可以使用 MySQL HeatWave 服务，它是通过 Azure VNET 连接 OCI 的 MySQL HeatWave，也就是说，实际上使用的还是 OCI 的环境。</p>
+<p>目的是为 Azure 用户提供原生用户体验，私有互联的方式将网络延迟控制在 2ms 内。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/13-mhw-odsa.png" alt="13-mhw-odsa.png"></p>
+<p>(<a target="_blank" rel="noopener" href="https://www.oracle.com/cloud/azure/oracle-database-for-azure/">https://www.oracle.com/cloud/azure/oracle-database-for-azure/</a>)</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>MySQL HeatWave  可支持在 OCI（Oracle Cloud Infrastructure）、AWS（Amazon Web Services）和 Microsoft Azure 上使用，也支持将 OCI 部署到用户数据中心。</p>
+<p>启用 MySQL HeatWave 插件后，用户可以通过一个 MySQL 服务来满足业务在 TP 和 AP 的需求，而无需修改业务。通过内部流程自动地完成数据同步，不需要单独维护 ETL，可保持架构简洁。自动驾驶（AI）和湖仓一体的能力给用户更多期待。</p>
+<p>MySQL HeatWave 弥补了 MySQL 在分析场景的能力，对于中小型企业有非常大的意义。</p>
+<p>其中有两方面不足之处，值得用户关注：InnoDB 的存储（扩展限制）及数据一致性问题。</p>
+<p>扩展限制：MySQL HeatWave 可以提供扩展能力，但 MySQL InnoDB 存储问题没有在本质上被解决掉，InnoDB 面对海量数据的情况，仍存在较大挑战。</p>
+<p>数据一致性：对于数据一致性要求较高的场景，需要考虑 InnoDB 到 HeatWave 的延迟问题（异步传输）。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://dev.mysql.com/doc/heatwave/en/heatwave-introduction.html">[1] MySQL :: MySQL HeatWave User Guide :: 1 Overview</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.nextplatform.com/2021/08/10/pushing-cloud-mysql-performance-the-oracle-way/">[2] Pushing Cloud MySQL Performance The Oracle Way (nextplatform.com)</a></p>
+<p><a target="_blank" rel="noopener" href="http://mysql.taobao.org/monthly/2021/04/04/">[3] MySQL · HTAP · 分析型执行引擎 (taobao.org)</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1Mq4y1Q7Zt/?spm_id_from=333.337.search-card.all.click&vd_source=7ad99b8f04cc31bfc1c6509a18c58cde">[4] Oracle 公益课堂：MDS &amp; Heatwave</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.oracle.com/cn/mysql/heatwave/#rc30p1">[5] HeatWave | Oracle 中国</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.oracle.com/mysql/#rc30p6">[6] MySQL HeatWave Database Service | Oracle</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MySQL/" rel="tag"># MySQL</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/11/15/%E7%9B%B8%E5%86%8C-%E6%97%A5%E6%99%9A%E8%8F%B1%E6%AD%8C%E5%94%B1%EF%BC%8C%E9%A3%8E%E7%83%9F%E6%BB%A1%E5%A4%95%E9%98%B3%E3%80%82/" rel="prev" title="相册 | 日晚菱歌唱，风烟满夕阳。">
+      <i class="fa fa-chevron-left"></i> 相册 | 日晚菱歌唱，风烟满夕阳。
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#MySQL-HeatWave-%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">MySQL HeatWave 简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MySQL-HeatWave-%E6%8A%80%E6%9C%AF%E6%9E%B6%E6%9E%84"><span class="nav-number">2.</span> <span class="nav-text">MySQL HeatWave 技术架构</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="nav-number">2.1.</span> <span class="nav-text">整体架构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%97%E5%AD%98"><span class="nav-number">2.2.</span> <span class="nav-text">列存</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MySQL-HeatWave-%E5%8A%9F%E8%83%BD"><span class="nav-number">3.</span> <span class="nav-text">MySQL HeatWave 功能</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MySQL-HeatWave-%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="nav-number">4.</span> <span class="nav-text">MySQL HeatWave 工作原理</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MySQL-HeatWave-%E6%95%B0%E6%8D%AE%E5%8A%A0%E8%BD%BD"><span class="nav-number">5.</span> <span class="nav-text">MySQL HeatWave 数据加载</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8A%A0%E8%BD%BD%E6%96%B9%E5%BC%8F"><span class="nav-number">5.1.</span> <span class="nav-text">加载方式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%90%8C%E6%AD%A5%E6%96%B9%E5%BC%8F"><span class="nav-number">5.2.</span> <span class="nav-text">同步方式</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MySQL-HeatWave-%E9%83%A8%E7%BD%B2%E6%96%B9%E5%BC%8F"><span class="nav-number">6.</span> <span class="nav-text">MySQL HeatWave 部署方式</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%AC%E6%9C%89%E4%BA%91"><span class="nav-number">6.1.</span> <span class="nav-text">公有云</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B7%B7%E5%90%88%E9%83%A8%E7%BD%B2"><span class="nav-number">6.2.</span> <span class="nav-text">混合部署</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%AC%E5%9C%B0%E9%83%A8%E7%BD%B2"><span class="nav-number">6.3.</span> <span class="nav-text">本地部署</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MySQL-HeatWave-%E6%80%A7%E4%BB%B7%E6%AF%94"><span class="nav-number">7.</span> <span class="nav-text">MySQL HeatWave 性价比</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MySQL-HeatWave-%E8%B4%B9%E7%94%A8"><span class="nav-number">8.</span> <span class="nav-text">MySQL HeatWave 费用</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MySQL-HeatWave-%E5%A4%9A%E4%BA%91%E5%B7%AE%E5%BC%82"><span class="nav-number">9.</span> <span class="nav-text">MySQL HeatWave 多云差异</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#OCI-%E5%92%8C-AWS"><span class="nav-number">9.1.</span> <span class="nav-text">OCI 和 AWS</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Azure"><span class="nav-number">9.2.</span> <span class="nav-text">Azure</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">10.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">11.</span> <span class="nav-text">参考</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="代野"
+      src="/images/photo.jpg">
+  <p class="site-author-name" itemprop="name">代野</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="mailto:daiyex@outlook.com" title="E-Mail → mailto:daiyex@outlook.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+  <div class="beian"><a href="https://beian.miit.gov.cn/" rel="noopener" target="_blank">京ICP备18010339号-3 </a>
+  </div>
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">代野</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

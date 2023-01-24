@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/icon-200.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/icon-16.png">
+  <link rel="mask-icon" href="/images/icon-344.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":"flat","style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="前一篇文章介绍了 MySQL 静态读写分离的配置，那么面对 Sharding+ 读写分离组合使用的场景，该如何去配置？下面内容记录了操作过程，我们通过 ShardingSphere-Proxy 和 4 个 MySQL 节点即可验证。 测试目的基于两组 MySQL 一主两从复制架构，验证 Apache ShardingSphere 的 Sharding + 静态读写分离组合能力。 预置条件 Shar">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ShardingSphere + MySQL 构建 Sharding+读写分离集群">
+<meta property="og:url" content="http://example.com/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/index.html">
+<meta property="og:site_name" content="代野博客">
+<meta property="og:description" content="前一篇文章介绍了 MySQL 静态读写分离的配置，那么面对 Sharding+ 读写分离组合使用的场景，该如何去配置？下面内容记录了操作过程，我们通过 ShardingSphere-Proxy 和 4 个 MySQL 节点即可验证。 测试目的基于两组 MySQL 一主两从复制架构，验证 Apache ShardingSphere 的 Sharding + 静态读写分离组合能力。 预置条件 Shar">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/Sharding+%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB.png">
+<meta property="article:published_time" content="2022-11-15T15:46:15.000Z">
+<meta property="article:modified_time" content="2022-11-15T15:51:45.005Z">
+<meta property="article:author" content="代野">
+<meta property="article:tag" content="ShardingSphere">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/Sharding+%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB.png">
+
+<link rel="canonical" href="http://example.com/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>ShardingSphere + MySQL 构建 Sharding+读写分离集群 | 代野博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">代野博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          ShardingSphere + MySQL 构建 Sharding+读写分离集群
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-11-15 23:46:15 / 修改时间：23:51:45" itemprop="dateCreated datePublished" datetime="2022-11-15T23:46:15+08:00">2022-11-15</time>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>前一篇文章介绍了 <a target="_blank" rel="noopener" href="http://daiyex.com/2022/11/15/ShardingSphere-MySQL-%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E%EF%BC%8C%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE%E6%BC%94%E7%A4%BA/">MySQL 静态读写分离</a>的配置，那么面对 Sharding+ 读写分离组合使用的场景，该如何去配置？下面内容记录了操作过程，我们通过 ShardingSphere-Proxy 和 4 个 MySQL 节点即可验证。</p>
+<h1 id="测试目的"><a href="#测试目的" class="headerlink" title="测试目的"></a>测试目的</h1><p>基于两组 MySQL 一主两从复制架构，验证 Apache ShardingSphere 的 Sharding + 静态读写分离组合能力。</p>
+<h1 id="预置条件"><a href="#预置条件" class="headerlink" title="预置条件"></a>预置条件</h1><ul>
+<li>ShardingSphere-Proxy 和 2 组 MySQL 集群（一主两从）正常运行，网络互通。</li>
+</ul>
+<h1 id="网络拓扑"><a href="#网络拓扑" class="headerlink" title="网络拓扑"></a>网络拓扑</h1><h2 id="拓扑图"><a href="#拓扑图" class="headerlink" title="拓扑图"></a>拓扑图</h2><p><img src="/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/Sharding+%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB.png" alt="Sharding+读写分离"></p>
+<span id="more"></span>
+<h2 id="版本说明"><a href="#版本说明" class="headerlink" title="版本说明"></a>版本说明</h2><ul>
+<li>ShardingSphere：5.2.1</li>
+<li>MySQL：8.0.28</li>
+</ul>
+<h1 id="预期结果"><a href="#预期结果" class="headerlink" title="预期结果"></a>预期结果</h1><p>Sharding + 读写分离能力可组合使用。</p>
+<h1 id="实操过程"><a href="#实操过程" class="headerlink" title="实操过程"></a>实操过程</h1><h2 id="1-构建集群"><a href="#1-构建集群" class="headerlink" title="1. 构建集群"></a>1. 构建集群</h2><p>在 ShardingSphere-Proxy 中创建逻辑库，注册 MGR 节点，完成集群构建。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"># mysql <span class="operator">-</span>uroot <span class="operator">-</span>p <span class="operator">-</span>h127<span class="number">.0</span><span class="number">.0</span><span class="number">.1</span> <span class="operator">-</span>P3307</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> DATABASE testdb;</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">0.05</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> DATABASES;</span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> schema_name        <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> shardingsphere     <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> information_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> performance_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> testdb             <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql              <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> sys                <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="number">6</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> USE testdb;</span><br><span class="line">Database changed</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">ADD</span> RESOURCE ds_0 (</span><br><span class="line">     URL<span class="operator">=</span>&quot;jdbc:mysql://192.168.56.103:3306/testdb0?serverTimezone=UTC&amp;useSSL=false&amp;allowPublicKeyRetrieval=true&quot;,</span><br><span class="line">     <span class="keyword">USER</span><span class="operator">=</span>&quot;test&quot;,</span><br><span class="line">     PASSWORD<span class="operator">=</span>&quot;Test@123&quot;,</span><br><span class="line">     PROPERTIES(&quot;maximumPoolSize&quot;<span class="operator">=</span>&quot;10&quot;,&quot;idleTimeout&quot;<span class="operator">=</span>&quot;30000&quot;)</span><br><span class="line">), ds_1 (</span><br><span class="line">     URL<span class="operator">=</span>&quot;jdbc:mysql://192.168.56.103:3306/testdb0?serverTimezone=UTC&amp;useSSL=false&amp;allowPublicKeyRetrieval=true&quot;,</span><br><span class="line">     <span class="keyword">USER</span><span class="operator">=</span>&quot;test&quot;,</span><br><span class="line">     PASSWORD<span class="operator">=</span>&quot;Test@123&quot;,</span><br><span class="line">     PROPERTIES(&quot;maximumPoolSize&quot;<span class="operator">=</span>&quot;10&quot;,&quot;idleTimeout&quot;<span class="operator">=</span>&quot;30000&quot;)</span><br><span class="line"></span><br><span class="line">), ds_2 (</span><br><span class="line">     URL<span class="operator">=</span>&quot;jdbc:mysql://192.168.56.104:3306/testdb1?serverTimezone=UTC&amp;useSSL=false&amp;allowPublicKeyRetrieval=true&quot;,</span><br><span class="line">     <span class="keyword">USER</span><span class="operator">=</span>&quot;test&quot;,</span><br><span class="line">     PASSWORD<span class="operator">=</span>&quot;Test@123&quot;,</span><br><span class="line">     PROPERTIES(&quot;maximumPoolSize&quot;<span class="operator">=</span>&quot;10&quot;,&quot;idleTimeout&quot;<span class="operator">=</span>&quot;30000&quot;)</span><br><span class="line">), ds_3 (</span><br><span class="line">     URL<span class="operator">=</span>&quot;jdbc:mysql://192.168.56.104:3306/testdb1?serverTimezone=UTC&amp;useSSL=false&amp;allowPublicKeyRetrieval=true&quot;,</span><br><span class="line">     <span class="keyword">USER</span><span class="operator">=</span>&quot;test&quot;,</span><br><span class="line">     PASSWORD<span class="operator">=</span>&quot;Test@123&quot;,</span><br><span class="line">     PROPERTIES(&quot;maximumPoolSize&quot;<span class="operator">=</span>&quot;10&quot;,&quot;idleTimeout&quot;<span class="operator">=</span>&quot;30000&quot;)</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">1.06</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> DATABASE RESOURCES;</span><br><span class="line"><span class="operator">+</span><span class="comment">------+-------+----------------+------+---------+---------------------------------+---------------------------+---------------------------+---------------+---------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> name <span class="operator">|</span> type  <span class="operator">|</span> host           <span class="operator">|</span> port <span class="operator">|</span> db      <span class="operator">|</span> connection_timeout_milliseconds <span class="operator">|</span> idle_timeout_milliseconds <span class="operator">|</span> max_lifetime_milliseconds <span class="operator">|</span> max_pool_size <span class="operator">|</span> min_pool_size <span class="operator">|</span> read_only <span class="operator">|</span> other_attributes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------+-------+----------------+------+---------+---------------------------------+---------------------------+---------------------------+---------------+---------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_3 <span class="operator">|</span> MySQL <span class="operator">|</span> <span class="number">192.168</span><span class="number">.56</span><span class="number">.104</span> <span class="operator">|</span> <span class="number">3306</span> <span class="operator">|</span> testdb1 <span class="operator">|</span> <span class="number">30000</span>                           <span class="operator">|</span> <span class="number">30000</span>                     <span class="operator">|</span> <span class="number">2100000</span>                   <span class="operator">|</span> <span class="number">10</span>            <span class="operator">|</span> <span class="number">1</span>             <span class="operator">|</span> <span class="literal">false</span>     <span class="operator">|</span> &#123;&quot;dataSourceProperties&quot;:&#123;&quot;cacheServerConfiguration&quot;:&quot;true&quot;,&quot;elideSetAutoCommits&quot;:&quot;true&quot;,&quot;useServerPrepStmts&quot;:&quot;true&quot;,&quot;cachePrepStmts&quot;:&quot;true&quot;,&quot;rewriteBatchedStatements&quot;:&quot;true&quot;,&quot;cacheResultSetMetadata&quot;:&quot;false&quot;,&quot;useLocalSessionState&quot;:&quot;true&quot;,&quot;maintainTimeStats&quot;:&quot;false&quot;,&quot;prepStmtCacheSize&quot;:&quot;8192&quot;,&quot;tinyInt1isBit&quot;:&quot;false&quot;,&quot;prepStmtCacheSqlLimit&quot;:&quot;2048&quot;,&quot;netTimeoutForStreamingResults&quot;:&quot;0&quot;,&quot;zeroDateTimeBehavior&quot;:&quot;round&quot;&#125;,&quot;healthCheckProperties&quot;:&#123;&#125;,&quot;initializationFailTimeout&quot;:<span class="number">1</span>,&quot;validationTimeout&quot;:<span class="number">5000</span>,&quot;leakDetectionThreshold&quot;:<span class="number">0</span>,&quot;registerMbeans&quot;:<span class="literal">false</span>,&quot;allowPoolSuspension&quot;:<span class="literal">false</span>,&quot;autoCommit&quot;:<span class="literal">true</span>,&quot;isolateInternalQueries&quot;:<span class="literal">false</span>&#125; <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_2 <span class="operator">|</span> MySQL <span class="operator">|</span> <span class="number">192.168</span><span class="number">.56</span><span class="number">.104</span> <span class="operator">|</span> <span class="number">3306</span> <span class="operator">|</span> testdb1 <span class="operator">|</span> <span class="number">30000</span>                           <span class="operator">|</span> <span class="number">30000</span>                     <span class="operator">|</span> <span class="number">2100000</span>                   <span class="operator">|</span> <span class="number">10</span>            <span class="operator">|</span> <span class="number">1</span>             <span class="operator">|</span> <span class="literal">false</span>     <span class="operator">|</span> &#123;&quot;dataSourceProperties&quot;:&#123;&quot;cacheServerConfiguration&quot;:&quot;true&quot;,&quot;elideSetAutoCommits&quot;:&quot;true&quot;,&quot;useServerPrepStmts&quot;:&quot;true&quot;,&quot;cachePrepStmts&quot;:&quot;true&quot;,&quot;rewriteBatchedStatements&quot;:&quot;true&quot;,&quot;cacheResultSetMetadata&quot;:&quot;false&quot;,&quot;useLocalSessionState&quot;:&quot;true&quot;,&quot;maintainTimeStats&quot;:&quot;false&quot;,&quot;prepStmtCacheSize&quot;:&quot;8192&quot;,&quot;tinyInt1isBit&quot;:&quot;false&quot;,&quot;prepStmtCacheSqlLimit&quot;:&quot;2048&quot;,&quot;netTimeoutForStreamingResults&quot;:&quot;0&quot;,&quot;zeroDateTimeBehavior&quot;:&quot;round&quot;&#125;,&quot;healthCheckProperties&quot;:&#123;&#125;,&quot;initializationFailTimeout&quot;:<span class="number">1</span>,&quot;validationTimeout&quot;:<span class="number">5000</span>,&quot;leakDetectionThreshold&quot;:<span class="number">0</span>,&quot;registerMbeans&quot;:<span class="literal">false</span>,&quot;allowPoolSuspension&quot;:<span class="literal">false</span>,&quot;autoCommit&quot;:<span class="literal">true</span>,&quot;isolateInternalQueries&quot;:<span class="literal">false</span>&#125; <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_1 <span class="operator">|</span> MySQL <span class="operator">|</span> <span class="number">192.168</span><span class="number">.56</span><span class="number">.103</span> <span class="operator">|</span> <span class="number">3306</span> <span class="operator">|</span> testdb0 <span class="operator">|</span> <span class="number">30000</span>                           <span class="operator">|</span> <span class="number">30000</span>                     <span class="operator">|</span> <span class="number">2100000</span>                   <span class="operator">|</span> <span class="number">10</span>            <span class="operator">|</span> <span class="number">1</span>             <span class="operator">|</span> <span class="literal">false</span>     <span class="operator">|</span> &#123;&quot;dataSourceProperties&quot;:&#123;&quot;cacheServerConfiguration&quot;:&quot;true&quot;,&quot;elideSetAutoCommits&quot;:&quot;true&quot;,&quot;useServerPrepStmts&quot;:&quot;true&quot;,&quot;cachePrepStmts&quot;:&quot;true&quot;,&quot;rewriteBatchedStatements&quot;:&quot;true&quot;,&quot;cacheResultSetMetadata&quot;:&quot;false&quot;,&quot;useLocalSessionState&quot;:&quot;true&quot;,&quot;maintainTimeStats&quot;:&quot;false&quot;,&quot;prepStmtCacheSize&quot;:&quot;8192&quot;,&quot;tinyInt1isBit&quot;:&quot;false&quot;,&quot;prepStmtCacheSqlLimit&quot;:&quot;2048&quot;,&quot;netTimeoutForStreamingResults&quot;:&quot;0&quot;,&quot;zeroDateTimeBehavior&quot;:&quot;round&quot;&#125;,&quot;healthCheckProperties&quot;:&#123;&#125;,&quot;initializationFailTimeout&quot;:<span class="number">1</span>,&quot;validationTimeout&quot;:<span class="number">5000</span>,&quot;leakDetectionThreshold&quot;:<span class="number">0</span>,&quot;registerMbeans&quot;:<span class="literal">false</span>,&quot;allowPoolSuspension&quot;:<span class="literal">false</span>,&quot;autoCommit&quot;:<span class="literal">true</span>,&quot;isolateInternalQueries&quot;:<span class="literal">false</span>&#125; <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_0 <span class="operator">|</span> MySQL <span class="operator">|</span> <span class="number">192.168</span><span class="number">.56</span><span class="number">.103</span> <span class="operator">|</span> <span class="number">3306</span> <span class="operator">|</span> testdb0 <span class="operator">|</span> <span class="number">30000</span>                           <span class="operator">|</span> <span class="number">30000</span>                     <span class="operator">|</span> <span class="number">2100000</span>                   <span class="operator">|</span> <span class="number">10</span>            <span class="operator">|</span> <span class="number">1</span>             <span class="operator">|</span> <span class="literal">false</span>     <span class="operator">|</span> &#123;&quot;dataSourceProperties&quot;:&#123;&quot;cacheServerConfiguration&quot;:&quot;true&quot;,&quot;elideSetAutoCommits&quot;:&quot;true&quot;,&quot;useServerPrepStmts&quot;:&quot;true&quot;,&quot;cachePrepStmts&quot;:&quot;true&quot;,&quot;rewriteBatchedStatements&quot;:&quot;true&quot;,&quot;cacheResultSetMetadata&quot;:&quot;false&quot;,&quot;useLocalSessionState&quot;:&quot;true&quot;,&quot;maintainTimeStats&quot;:&quot;false&quot;,&quot;prepStmtCacheSize&quot;:&quot;8192&quot;,&quot;tinyInt1isBit&quot;:&quot;false&quot;,&quot;prepStmtCacheSqlLimit&quot;:&quot;2048&quot;,&quot;netTimeoutForStreamingResults&quot;:&quot;0&quot;,&quot;zeroDateTimeBehavior&quot;:&quot;round&quot;&#125;,&quot;healthCheckProperties&quot;:&#123;&#125;,&quot;initializationFailTimeout&quot;:<span class="number">1</span>,&quot;validationTimeout&quot;:<span class="number">5000</span>,&quot;leakDetectionThreshold&quot;:<span class="number">0</span>,&quot;registerMbeans&quot;:<span class="literal">false</span>,&quot;allowPoolSuspension&quot;:<span class="literal">false</span>,&quot;autoCommit&quot;:<span class="literal">true</span>,&quot;isolateInternalQueries&quot;:<span class="literal">false</span>&#125; <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------+-------+----------------+------+---------+---------------------------------+---------------------------+---------------------------+---------------+---------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="number">4</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-创建静态读写分离规则"><a href="#2-创建静态读写分离规则" class="headerlink" title="2. 创建静态读写分离规则"></a>2. 创建静态读写分离规则</h2><p>本用例包含两个 MySQL 主从集群，因此读写分离规则也应配置为两个。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> READWRITE_SPLITTING RULE static_rwp_rule1 (</span><br><span class="line">WRITE_RESOURCE<span class="operator">=</span>ds_0,</span><br><span class="line">READ_RESOURCES(ds_1)</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">0.13</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> READWRITE_SPLITTING RULE static_rwp_rule2 (</span><br><span class="line">WRITE_RESOURCE<span class="operator">=</span>ds_2,</span><br><span class="line">READ_RESOURCES(ds_3)</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">0.05</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> READWRITE_SPLITTING RULES\G</span><br><span class="line"><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span> <span class="number">1.</span> <span class="type">row</span> <span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span></span><br><span class="line">                           name: static_rwp_rule1</span><br><span class="line">    auto_aware_data_source_name:</span><br><span class="line">write_data_source_query_enabled:</span><br><span class="line">         write_data_source_name: ds_0</span><br><span class="line">         read_data_source_names: ds_1</span><br><span class="line">             load_balancer_type:</span><br><span class="line">            load_balancer_props:</span><br><span class="line"><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span> <span class="number">2.</span> <span class="type">row</span> <span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span></span><br><span class="line">                           name: static_rwp_rule2</span><br><span class="line">    auto_aware_data_source_name:</span><br><span class="line">write_data_source_query_enabled:</span><br><span class="line">         write_data_source_name: ds_2</span><br><span class="line">         read_data_source_names: ds_3</span><br><span class="line">             load_balancer_type:</span><br><span class="line">            load_balancer_props:</span><br><span class="line"><span class="number">2</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h2 id="3-创建分片表"><a href="#3-创建分片表" class="headerlink" title="3. 创建分片表"></a>3. 创建分片表</h2><p>在 ShardingSphere-Proxy 中创建分片规则和分片表，注意规则名称和表名需要保持一致，<code>RESOURCES</code> 中需填写上一步所创建的两个读写分离规则。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> SHARDING <span class="keyword">TABLE</span> RULE t_user(</span><br><span class="line"> RESOURCES(static_rwp_rule1,static_rwp_rule2),</span><br><span class="line"> SHARDING_COLUMN<span class="operator">=</span>user_id,</span><br><span class="line"> TYPE(NAME<span class="operator">=</span>&quot;hash_mod&quot;,PROPERTIES(&quot;sharding-count&quot;<span class="operator">=</span>&quot;4&quot;))</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">0.11</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> SHARDING <span class="keyword">TABLE</span> RULE t_user\G</span><br><span class="line"><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span> <span class="number">1.</span> <span class="type">row</span> <span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span></span><br><span class="line">                            <span class="keyword">table</span>: t_user</span><br><span class="line">                actual_data_nodes:</span><br><span class="line">              actual_data_sources: static_rwp_rule1,static_rwp_rule2</span><br><span class="line">           database_strategy_type:</span><br><span class="line">         database_sharding_column:</span><br><span class="line"> database_sharding_algorithm_type:</span><br><span class="line">database_sharding_algorithm_props:</span><br><span class="line">              table_strategy_type: STANDARD</span><br><span class="line">            table_sharding_column: user_id</span><br><span class="line">    table_sharding_algorithm_type: hash_mod</span><br><span class="line">   table_sharding_algorithm_props: sharding<span class="operator">-</span>count<span class="operator">=</span><span class="number">4</span></span><br><span class="line">              key_generate_column:</span><br><span class="line">               key_generator_type:</span><br><span class="line">              key_generator_props:</span><br><span class="line">                    auditor_types:</span><br><span class="line">               allow_hint_disable:</span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">CREATE</span> <span class="keyword">TABLE</span> `t_user` (</span><br><span class="line"> `user_id` <span class="type">int</span> <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line"> `order_id` <span class="type">int</span> <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line"> `status` <span class="type">varchar</span>(<span class="number">45</span>) <span class="keyword">DEFAULT</span> <span class="keyword">NULL</span>,</span><br><span class="line"> <span class="keyword">PRIMARY</span> KEY (`user_id`)</span><br><span class="line">);</span><br><span class="line">Query OK, <span class="number">0</span> <span class="keyword">rows</span> affected (<span class="number">0.66</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user <span class="keyword">VALUES</span></span><br><span class="line">(<span class="number">1</span>,<span class="number">1</span>,<span class="string">&#x27;active&#x27;</span>),</span><br><span class="line">(<span class="number">2</span>,<span class="number">2</span>,<span class="string">&#x27;active&#x27;</span>),</span><br><span class="line">(<span class="number">3</span>,<span class="number">3</span>,<span class="string">&#x27;active&#x27;</span>),</span><br><span class="line">(<span class="number">4</span>,<span class="number">4</span>,<span class="string">&#x27;active&#x27;</span>);</span><br><span class="line">Query OK, <span class="number">4</span> <span class="keyword">rows</span> affected (<span class="number">0.22</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id;</span><br><span class="line"><span class="operator">+</span><span class="comment">---------+----------+--------+</span></span><br><span class="line"><span class="operator">|</span> user_id <span class="operator">|</span> order_id <span class="operator">|</span> status <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">---------+----------+--------+</span></span><br><span class="line"><span class="operator">|</span>       <span class="number">1</span> <span class="operator">|</span>        <span class="number">1</span> <span class="operator">|</span> active <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span>       <span class="number">2</span> <span class="operator">|</span>        <span class="number">2</span> <span class="operator">|</span> active <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span>       <span class="number">3</span> <span class="operator">|</span>        <span class="number">3</span> <span class="operator">|</span> active <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span>       <span class="number">4</span> <span class="operator">|</span>        <span class="number">4</span> <span class="operator">|</span> active <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">---------+----------+--------+</span></span><br><span class="line"><span class="number">4</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.05</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-验证读写分离配置"><a href="#4-验证读写分离配置" class="headerlink" title="4. 验证读写分离配置"></a>4. 验证读写分离配置</h2><p>在 ShardingSphere-Proxy 中，可在 SQL 前添加 <code>PREVIEW</code> 关键字来确认语句路由情况。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                              <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_1             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_0 <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_1             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_2 <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_3             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_1 <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ds_3             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_3 <span class="keyword">ORDER</span> <span class="keyword">BY</span> user_id <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------------------------------------+</span></span><br><span class="line"><span class="number">4</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.05</span> sec)</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>通过以上输出信息确认，全表检索通过 ds_1 和 ds_3 来完成，均为主从集群的备节点，与预期一致。下面通过一条带有 <code>WHERE</code> 条件的 SQL 确认。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user <span class="keyword">WHERE</span> user_id<span class="operator">=</span><span class="number">1</span>;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                             <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_3             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_1 <span class="keyword">WHERE</span> user_id<span class="operator">=</span><span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user <span class="keyword">WHERE</span> user_id<span class="operator">=</span><span class="number">2</span>;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                             <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_1             <span class="operator">|</span> <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> t_user_2 <span class="keyword">WHERE</span> user_id<span class="operator">=</span><span class="number">2</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+----------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.04</span> sec)</span><br></pre></td></tr></table></figure>
+
+<p>通过以上输出信息确认，带有 <code>WHERE</code> 条件的查询也都是通过备节点 ds_1 和 ds_3 来完成检索，与预期一致。</p>
+<p>最后，确认 <code>INSERT</code> 语句的路由。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user <span class="keyword">VALUES</span>(<span class="number">5</span>,<span class="number">5</span>,<span class="string">&#x27;active&#x27;</span>);</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                                  <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_2             <span class="operator">|</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user_1 <span class="keyword">VALUES</span>(<span class="number">5</span>, <span class="number">5</span>, <span class="string">&#x27;active&#x27;</span>) <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user <span class="keyword">VALUES</span>(<span class="number">6</span>,<span class="number">6</span>,<span class="string">&#x27;active&#x27;</span>);</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                                  <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_0             <span class="operator">|</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user_2 <span class="keyword">VALUES</span>(<span class="number">6</span>, <span class="number">6</span>, <span class="string">&#x27;active&#x27;</span>) <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> PREVIEW <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user <span class="keyword">VALUES</span>(<span class="number">7</span>,<span class="number">7</span>,<span class="string">&#x27;active&#x27;</span>);</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> data_source_name <span class="operator">|</span> actual_sql                                  <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> ds_2             <span class="operator">|</span> <span class="keyword">INSERT</span> <span class="keyword">INTO</span> t_user_3 <span class="keyword">VALUES</span>(<span class="number">7</span>, <span class="number">7</span>, <span class="string">&#x27;active&#x27;</span>) <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+---------------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br></pre></td></tr></table></figure>
+
+<p><code>INSERT</code> 操作均由主节点 ds_0 和 ds_2 完成，与预期一致，测试结束。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>在 Sharding 和读写分离组合使用的配置中，务必要先创建读写分离的规则，再去配置 Sharding。因为 Sharding 是需要基于读写分离去完成分片配置，两者顺序不可颠倒。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/ShardingSphere/" rel="tag"># ShardingSphere</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/11/15/ShardingSphere-MySQL-%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E%EF%BC%8C%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE%E6%BC%94%E7%A4%BA/" rel="prev" title="ShardingSphere + MySQL 一主两从，静态读写分离配置演示">
+      <i class="fa fa-chevron-left"></i> ShardingSphere + MySQL 一主两从，静态读写分离配置演示
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/11/15/%E7%9B%B8%E5%86%8C-%E6%97%A5%E6%99%9A%E8%8F%B1%E6%AD%8C%E5%94%B1%EF%BC%8C%E9%A3%8E%E7%83%9F%E6%BB%A1%E5%A4%95%E9%98%B3%E3%80%82/" rel="next" title="相册 | 日晚菱歌唱，风烟满夕阳。">
+      相册 | 日晚菱歌唱，风烟满夕阳。 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E7%9B%AE%E7%9A%84"><span class="nav-number">1.</span> <span class="nav-text">测试目的</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%A2%84%E7%BD%AE%E6%9D%A1%E4%BB%B6"><span class="nav-number">2.</span> <span class="nav-text">预置条件</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E6%8B%93%E6%89%91"><span class="nav-number">3.</span> <span class="nav-text">网络拓扑</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8B%93%E6%89%91%E5%9B%BE"><span class="nav-number">3.1.</span> <span class="nav-text">拓扑图</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%89%88%E6%9C%AC%E8%AF%B4%E6%98%8E"><span class="nav-number">3.2.</span> <span class="nav-text">版本说明</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%A2%84%E6%9C%9F%E7%BB%93%E6%9E%9C"><span class="nav-number">4.</span> <span class="nav-text">预期结果</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%9E%E6%93%8D%E8%BF%87%E7%A8%8B"><span class="nav-number">5.</span> <span class="nav-text">实操过程</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E6%9E%84%E5%BB%BA%E9%9B%86%E7%BE%A4"><span class="nav-number">5.1.</span> <span class="nav-text">1. 构建集群</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E5%88%9B%E5%BB%BA%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E8%A7%84%E5%88%99"><span class="nav-number">5.2.</span> <span class="nav-text">2. 创建静态读写分离规则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E5%88%9B%E5%BB%BA%E5%88%86%E7%89%87%E8%A1%A8"><span class="nav-number">5.3.</span> <span class="nav-text">3. 创建分片表</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E9%AA%8C%E8%AF%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE"><span class="nav-number">5.4.</span> <span class="nav-text">4. 验证读写分离配置</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">6.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="代野"
+      src="/images/photo.jpg">
+  <p class="site-author-name" itemprop="name">代野</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="mailto:daiyex@outlook.com" title="E-Mail → mailto:daiyex@outlook.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+  <div class="beian"><a href="https://beian.miit.gov.cn/" rel="noopener" target="_blank">京ICP备18010339号-3 </a>
+  </div>
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">代野</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

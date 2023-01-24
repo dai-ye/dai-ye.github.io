@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/icon-200.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/icon-16.png">
+  <link rel="mask-icon" href="/images/icon-344.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":"flat","style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta property="og:type" content="website">
+<meta property="og:title" content="代野博客">
+<meta property="og:url" content="http://example.com/index.html">
+<meta property="og:site_name" content="代野博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:author" content="代野">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : true,
+    isPost : false,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>代野博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">代野博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content index posts-expand">
+            
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/" class="post-title-link" itemprop="url">初识 MySQL HeatWave</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-11-26 17:17:07 / 修改时间：18:44:03" itemprop="dateCreated datePublished" datetime="2022-11-26T17:17:07+08:00">2022-11-26</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>MySQL 作为全球最欢迎的数据库，已在交易场景叱咤风云多年。在 2020 年底，OCI（Oracle Cloud Infrastructure）推出了一个黑科技插件，它弥补了 MySQL 在分析场景的短板，Oracle 官方称它比 Aurora 快 1400 倍，比 Redshift 快 6.5 倍，而且还能以二分之一的成本完成这些工作，它就是 MySQL HeatWave。</p>
+<p>目前网络上关于 MySQL HeatWave 的资料相对较少，我通过已有的资料和 B 站公开课视频初探 MySQL HeatWave，梳理出本篇笔记。</p>
+<p>本文发布时间为 2022 年 11 月，由于产品更新的客观情况，本文部分信息会存在实效性，请以官方文档为准。（<a target="_blank" rel="noopener" href="https://dev.mysql.com/doc/heatwave/en/heatwave-introduction.html">https://dev.mysql.com/doc/heatwave/en/heatwave-introduction.html</a>)</p>
+<h1 id="MySQL-HeatWave-简介"><a href="#MySQL-HeatWave-简介" class="headerlink" title="MySQL HeatWave 简介"></a>MySQL HeatWave 简介</h1><p>MySQL HeatWave 是一个内置高性能内存查询加速器的 MySQL 云服务。借助该服务，我们无需对当前应用进行任何更改，即可将混合工作负载的 MySQL 性能提高数个量级。</p>
+<p>相比传统的分析场景，MySQL HeatWave 可以让用户无需再使用单独的分析数据库、单独的机器学习 (ML) 工具以及提取、转换和加载（ETL）复制。同时，借助 MySQL HeatWave 机器学习，开发人员和数据分析师可以在 MySQL HeatWave 中构建、训练、部署和解释机器学习模型，无需将数据迁移到单独的机器学习服务中。</p>
+<p>目前 MySQL HeatWave  可在 OCI（Oracle Cloud Infrastructure）、AWS（Amazon Web Services）和 Microsoft Azure 上使用。</p>
+<p><img src="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/1-mhw-overview.png" alt="heatwave-overview"></p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/11/15/%E7%9B%B8%E5%86%8C-%E6%97%A5%E6%99%9A%E8%8F%B1%E6%AD%8C%E5%94%B1%EF%BC%8C%E9%A3%8E%E7%83%9F%E6%BB%A1%E5%A4%95%E9%98%B3%E3%80%82/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/11/15/%E7%9B%B8%E5%86%8C-%E6%97%A5%E6%99%9A%E8%8F%B1%E6%AD%8C%E5%94%B1%EF%BC%8C%E9%A3%8E%E7%83%9F%E6%BB%A1%E5%A4%95%E9%98%B3%E3%80%82/" class="post-title-link" itemprop="url">相册 | 日晚菱歌唱，风烟满夕阳。</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-11-15 23:59:38" itemprop="dateCreated datePublished" datetime="2022-11-15T23:59:38+08:00">2022-11-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-11-16 08:32:45" itemprop="dateModified" datetime="2022-11-16T08:32:45+08:00">2022-11-16</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p><img src="/2022/11/15/%E7%9B%B8%E5%86%8C-%E6%97%A5%E6%99%9A%E8%8F%B1%E6%AD%8C%E5%94%B1%EF%BC%8C%E9%A3%8E%E7%83%9F%E6%BB%A1%E5%A4%95%E9%98%B3%E3%80%82/20221115-%E5%A4%95%E9%98%B3-%E7%BE%8E%E5%9B%BE-Cynthia.jpg" alt="20221115-夕阳-美图-Cynthia"></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/" class="post-title-link" itemprop="url">ShardingSphere + MySQL 构建 Sharding+读写分离集群</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-11-15 23:46:15 / 修改时间：23:51:45" itemprop="dateCreated datePublished" datetime="2022-11-15T23:46:15+08:00">2022-11-15</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>前一篇文章介绍了 <a target="_blank" rel="noopener" href="http://daiyex.com/2022/11/15/ShardingSphere-MySQL-%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E%EF%BC%8C%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE%E6%BC%94%E7%A4%BA/">MySQL 静态读写分离</a>的配置，那么面对 Sharding+ 读写分离组合使用的场景，该如何去配置？下面内容记录了操作过程，我们通过 ShardingSphere-Proxy 和 4 个 MySQL 节点即可验证。</p>
+<h1 id="测试目的"><a href="#测试目的" class="headerlink" title="测试目的"></a>测试目的</h1><p>基于两组 MySQL 一主两从复制架构，验证 Apache ShardingSphere 的 Sharding + 静态读写分离组合能力。</p>
+<h1 id="预置条件"><a href="#预置条件" class="headerlink" title="预置条件"></a>预置条件</h1><ul>
+<li>ShardingSphere-Proxy 和 2 组 MySQL 集群（一主两从）正常运行，网络互通。</li>
+</ul>
+<h1 id="网络拓扑"><a href="#网络拓扑" class="headerlink" title="网络拓扑"></a>网络拓扑</h1><h2 id="拓扑图"><a href="#拓扑图" class="headerlink" title="拓扑图"></a>拓扑图</h2><p><img src="/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/Sharding+%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB.png" alt="Sharding+读写分离"></p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/11/15/ShardingSphere-MySQL-%E6%9E%84%E5%BB%BA-Sharding-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%9B%86%E7%BE%A4/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/11/15/ShardingSphere-MySQL-%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E%EF%BC%8C%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE%E6%BC%94%E7%A4%BA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/11/15/ShardingSphere-MySQL-%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E%EF%BC%8C%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE%E6%BC%94%E7%A4%BA/" class="post-title-link" itemprop="url">ShardingSphere + MySQL 一主两从，静态读写分离配置演示</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-11-15 23:35:28 / 修改时间：23:53:02" itemprop="dateCreated datePublished" datetime="2022-11-15T23:35:28+08:00">2022-11-15</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>对于读写分离的概念，大家一定不会陌生。除了分库分表，Apache ShardingSphere 还有非常实用的读写分离能力，非常适用于读比例较高的业务场景中，可显著地提升系统吞吐上限。</p>
+<ul>
+<li><p>读写分离模式：</p>
+<ul>
+<li>静态读写分离：将主从节点 IP 信息注册到 ShardingSphere 中，ShardingSphere 不关注数据库节点状态变化，适用于一主一备，或使用了 VIP 的场景。</li>
+<li>动态读写分离：ShardingSphere 可自动感知数据库节点角色变化，数据库节点 failover 对业务透明，目前支持 MGR 架构。</li>
+</ul>
+</li>
+<li><p>从库的负载均衡策略：支持随机、轮询和权重策略。</p>
+</li>
+</ul>
+<p>下面通过一个「静态」读写分离的测试用例，进一步了解 Apache ShardingSphere 的读写分离能力。详细配置请参考官方文档<a target="_blank" rel="noopener" href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/distsql/syntax/rdl/rule-definition/readwrite-splitting/">读写分离</a>配置章节。</p>
+<h1 id="测试目的"><a href="#测试目的" class="headerlink" title="测试目的"></a>测试目的</h1><p>基于 MySQL 一主两从复制架构，验证 Apache ShardingSphere 对数据库的静态读写分离能力。</p>
+<h1 id="预置条件"><a href="#预置条件" class="headerlink" title="预置条件"></a>预置条件</h1><ul>
+<li>ShardingSphere-Proxy 和 MySQL 集群（一主两从）正常运行，网络互通；</li>
+<li>MGR 集群中提前建好库，并准备测试表和若干测试记录用于测试；</li>
+<li>MySQL 开启 general log，便于通过日志信息确认语句真实执行情况。</li>
+</ul>
+<h1 id="网络拓扑"><a href="#网络拓扑" class="headerlink" title="网络拓扑"></a>网络拓扑</h1><h2 id="拓扑图"><a href="#拓扑图" class="headerlink" title="拓扑图"></a>拓扑图</h2><p><img src="/2022/11/15/ShardingSphere-MySQL-%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E%EF%BC%8C%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE%E6%BC%94%E7%A4%BA/%E6%8F%92%E5%9B%BE%E7%B4%A0%E6%9D%90-%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB-20221113224736-u1wr4oy.png" alt="读写分离"></p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/11/15/ShardingSphere-MySQL-%E4%B8%80%E4%B8%BB%E4%B8%A4%E4%BB%8E%EF%BC%8C%E9%9D%99%E6%80%81%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB%E9%85%8D%E7%BD%AE%E6%BC%94%E7%A4%BA/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/11/12/%E9%80%9A%E8%BF%87%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%8C%85%E5%BF%AB%E9%80%9F%E5%AE%89%E8%A3%85-ShardingSphere-Proxy%EF%BC%885-2-1%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/11/12/%E9%80%9A%E8%BF%87%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%8C%85%E5%BF%AB%E9%80%9F%E5%AE%89%E8%A3%85-ShardingSphere-Proxy%EF%BC%885-2-1%EF%BC%89/" class="post-title-link" itemprop="url">通过二进制包快速安装 ShardingSphere-Proxy（5.2.1）</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-11-12 23:28:56 / 修改时间：23:39:42" itemprop="dateCreated datePublished" datetime="2022-11-12T23:28:56+08:00">2022-11-12</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <blockquote>
+<p>借本地虚机环境安装 ShardingSphere-Proxy 5.2.1 机会，记录了安装过程，供大家参考。</p>
+</blockquote>
+<p>ShardingSphere 支持多种安装方式，如通过二进制包、<a target="_blank" rel="noopener" href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/startup/docker/">使用 Docker</a> 或<a target="_blank" rel="noopener" href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/startup/helm/">使用 Helm</a>。本文档介绍如何通过二进制包快速构建 ShardingSphere-Proxy 测试环境，使用版本为 5.2.1。更详细的安装说明，请参考用户手册：<a target="_blank" rel="noopener" href="https://shardingsphere.apache.org/document/5.2.1/cn/user-manual/shardingsphere-proxy/startup/bin/">使用二进制发布包</a>安装 ShardingSphere-Proxy。</p>
+<h1 id="环境要求"><a href="#环境要求" class="headerlink" title="环境要求"></a>环境要求</h1><ul>
+<li>操作系统：Linux，Windows</li>
+<li>Java JRE：8 或以上版本</li>
+</ul>
+<h1 id="安装-ShardingSphere-Proxy"><a href="#安装-ShardingSphere-Proxy" class="headerlink" title="安装 ShardingSphere-Proxy"></a>安装 ShardingSphere-Proxy</h1><p>通过 5 个步骤完成快速安装：</p>
+<ol>
+<li>下载产品包</li>
+<li>解压产品包</li>
+<li>修改配置文件（server.yaml）</li>
+<li>引入数据库驱动</li>
+<li>启动服务</li>
+</ol>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/11/12/%E9%80%9A%E8%BF%87%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%8C%85%E5%BF%AB%E9%80%9F%E5%AE%89%E8%A3%85-ShardingSphere-Proxy%EF%BC%885-2-1%EF%BC%89/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/" class="post-title-link" itemprop="url">Sharding | 数据分片策略：分片键和分片算法的选择</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-10-16 23:42:09 / 修改时间：23:46:14" itemprop="dateCreated datePublished" datetime="2022-10-16T23:42:09+08:00">2022-10-16</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <blockquote>
+<p>摘要：规划分片策略的过程需要考虑较多的问题，本文简单地概括了分片键应具有的特性，以及常见分片算法的特点。</p>
+</blockquote>
+<p><img src="/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/20221016-1-Sharding01.png" alt="20221016-1-Sharding01">Sharding 作为海量存储高并发沙场中的制胜利器，制定合理的 Sharding 策略会为系统提供强有力的性能保障，选择合适的分片键和分片算法，是分片策略规划中的重要工作。<strong>由于业务特点各不相同，分片键和分片算法的选择没有绝对统一的模板。</strong></p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/10/16/Sharding-%E6%95%B0%E6%8D%AE%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5%EF%BC%9A%E5%88%86%E7%89%87%E9%94%AE%E5%92%8C%E5%88%86%E7%89%87%E7%AE%97%E6%B3%95%E7%9A%84%E9%80%89%E6%8B%A9/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/" class="post-title-link" itemprop="url">初识 GDPR：史上最严格的数据保护条例</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-10-08 16:31:59 / 修改时间：16:54:14" itemprop="dateCreated datePublished" datetime="2022-10-08T16:31:59+08:00">2022-10-08</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p><img src="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/20221007-1-p0.png" alt="p0.png"></p>
+<h1 id="1-什么是-GDPR？"><a href="#1-什么是-GDPR？" class="headerlink" title="1 什么是 GDPR？"></a>1 什么是 GDPR？</h1><p><strong>GDPR</strong> 全称是 General Data Protection Regulation，译为<strong>《通用数据保护条例》</strong>，是欧盟 2016 年通过的条例，于 2018 年 5 月 25 日正式生效，旨在保护欧盟居民隐私，GDPR 详情见 <a target="_blank" rel="noopener" href="https://gdpr-info.eu/">https://gdpr-info.eu/</a>。</p>
+<p>GDPR 面向所有<strong>收集、处理、储存、管理欧盟公民个人数据</strong>的企业，限制了这些企业收集与处理用户个人信息的权限，将个人信息的最终控制权交还给用户本人，凡涉及欧盟个人数据的行为，都可被 GDPR 所管辖。在个人数据保护方面，GDPR 是目前全球规定最为严格、处罚最为严厉的法规之一。</p>
+<p>GDPR 取代了欧盟在 1995 年推出的欧盟《数据保护指令》（又称“95 指令”），相比 95 指令，<strong>GDPR 增加了优化数据流向欧盟以外国家的管理办法，以及增强用户对其个人信息的控制</strong>。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/" class="post-title-link" itemprop="url">最后的防线：数据存储加密方案</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-09-09 00:07:16 / 修改时间：17:40:35" itemprop="dateCreated datePublished" datetime="2022-09-09T00:07:16+08:00">2022-09-09</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p><img src="/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-0.png" alt="image"></p>
+<p>数字化时代，数据安全与隐私泄露事件频发，同时，安全事件涉及面较广、影响力巨大，数据安全威胁问题愈发凸显。</p>
+<p>随着数据安全在国家安全体系中的重要地位进一步明确，数据安全相关法律体系也不断在完善，如《数据安全法》《个人信息保护法》《网络安全法》和《网络数据安全管理条例（征求意见稿）》。</p>
+<p>防范数据安全风险事件的发生、保障业务运营以及企业自身的发展需要都成为了企业在数据安全建设中的关注焦点。在信通院发布的《2021 数据安全行业调研报告》中，有 97% 的受访企业表示监管驱动是企业开展数据安全能力建设的主要动力。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/" class="post-title-link" itemprop="url">浅谈与 DBA 息息相关的 Database Plus 理念</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-08-17 07:07:11 / 修改时间：08:46:30" itemprop="dateCreated datePublished" datetime="2022-08-17T07:07:11+08:00">2022-08-17</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p><img src="/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/20220817-1-0.png" alt="image"><br>近年来，数据库技术在多元化业务需求和系列政策驱动下，发展快马加鞭。数据库百花齐放为 DBA 提供了更多的发展路径的同时，也彻底的改变了 DBA 的工作内容、方式和标准。</p>
+<p>在<strong>数据库碎片化</strong>发展的趋势下，SphereEx CEO 张亮总在 2021 年首次提出了 <strong>Database Plus</strong> 理念，该理念倡导在数据库上层构建统一标准的生态层，提供如<strong>分布式数据库</strong>、<strong>异构统一接入</strong>、<strong>数据库能力增强</strong>、<strong>云原生</strong>及<strong>信创落地</strong>等方案。</p>
+<p>本文从数据库发展趋势出发来介绍 Database Plus 理念、对 DBA 的帮助及最佳实践，记录我个人对 Database Plus 的理解。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="代野"
+      src="/images/photo.jpg">
+  <p class="site-author-name" itemprop="name">代野</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="mailto:daiyex@outlook.com" title="E-Mail → mailto:daiyex@outlook.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+  <div class="beian"><a href="https://beian.miit.gov.cn/" rel="noopener" target="_blank">京ICP备18010339号-3 </a>
+  </div>
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">代野</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

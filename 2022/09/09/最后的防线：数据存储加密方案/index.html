@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/icon-200.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/icon-16.png">
+  <link rel="mask-icon" href="/images/icon-344.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":"flat","style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="数字化时代，数据安全与隐私泄露事件频发，同时，安全事件涉及面较广、影响力巨大，数据安全威胁问题愈发凸显。 随着数据安全在国家安全体系中的重要地位进一步明确，数据安全相关法律体系也不断在完善，如《数据安全法》《个人信息保护法》《网络安全法》和《网络数据安全管理条例（征求意见稿）》。 防范数据安全风险事件的发生、保障业务运营以及企业自身的发展需要都成为了企业在数据安全建设中的关注焦点。在信通院发布的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="最后的防线：数据存储加密方案">
+<meta property="og:url" content="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/index.html">
+<meta property="og:site_name" content="代野博客">
+<meta property="og:description" content="数字化时代，数据安全与隐私泄露事件频发，同时，安全事件涉及面较广、影响力巨大，数据安全威胁问题愈发凸显。 随着数据安全在国家安全体系中的重要地位进一步明确，数据安全相关法律体系也不断在完善，如《数据安全法》《个人信息保护法》《网络安全法》和《网络数据安全管理条例（征求意见稿）》。 防范数据安全风险事件的发生、保障业务运营以及企业自身的发展需要都成为了企业在数据安全建设中的关注焦点。在信通院发布的">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-0.png">
+<meta property="og:image" content="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-1.png">
+<meta property="article:published_time" content="2022-09-08T16:07:16.000Z">
+<meta property="article:modified_time" content="2022-09-09T09:40:35.486Z">
+<meta property="article:author" content="代野">
+<meta property="article:tag" content="数据安全">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-0.png">
+
+<link rel="canonical" href="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>最后的防线：数据存储加密方案 | 代野博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">代野博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/photo.jpg">
+      <meta itemprop="name" content="代野">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="代野博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          最后的防线：数据存储加密方案
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-09-09 00:07:16 / 修改时间：17:40:35" itemprop="dateCreated datePublished" datetime="2022-09-09T00:07:16+08:00">2022-09-09</time>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><img src="/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-0.png" alt="image"></p>
+<p>数字化时代，数据安全与隐私泄露事件频发，同时，安全事件涉及面较广、影响力巨大，数据安全威胁问题愈发凸显。</p>
+<p>随着数据安全在国家安全体系中的重要地位进一步明确，数据安全相关法律体系也不断在完善，如《数据安全法》《个人信息保护法》《网络安全法》和《网络数据安全管理条例（征求意见稿）》。</p>
+<p>防范数据安全风险事件的发生、保障业务运营以及企业自身的发展需要都成为了企业在数据安全建设中的关注焦点。在信通院发布的《2021 数据安全行业调研报告》中，有 97% 的受访企业表示监管驱动是企业开展数据安全能力建设的主要动力。</p>
+<span id="more"></span>
+
+<p><img src="/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-1.png" alt="image"></p>
+<p>图片来源：信通院《2021 数据安全行业调研报告》</p>
+<h1 id="加密改造面临的挑战"><a href="#加密改造面临的挑战" class="headerlink" title="加密改造面临的挑战"></a>加密改造面临的挑战</h1><h2 id="审计合规"><a href="#审计合规" class="headerlink" title="审计合规"></a>审计合规</h2><ul>
+<li>满足合规要求</li>
+<li>过程可回溯</li>
+<li>密钥可定期更换</li>
+</ul>
+<h2 id="改造成本"><a href="#改造成本" class="headerlink" title="改造成本"></a>改造成本</h2><ul>
+<li>改造系统</li>
+<li>上下游系统、服务集群保持一致策略</li>
+</ul>
+<h2 id="业务安全性"><a href="#业务安全性" class="headerlink" title="业务安全性"></a>业务安全性</h2><ul>
+<li>保证改造过程的平滑</li>
+<li>出现问题可快速回滚</li>
+<li>减少对系统的影响</li>
+</ul>
+<h2 id="性能"><a href="#性能" class="headerlink" title="性能"></a>性能</h2><ul>
+<li>加密运算带来的性能损耗</li>
+<li>ROI 可控，满足预算要求</li>
+</ul>
+<h1 id="常见的-6-种数据存储加密方案"><a href="#常见的-6-种数据存储加密方案" class="headerlink" title="常见的 6 种数据存储加密方案"></a>常见的 6 种数据存储加密方案</h1><p>在整理文章的过程中查找了相关的材料，基本上会将常见的方案定义为 6 种：</p>
+<ul>
+<li>应用加密方案</li>
+<li>数据库加密网关方案</li>
+<li>后置代理加密方案</li>
+<li>数据库 TDE 加密方案</li>
+<li>文件加密方案</li>
+<li>磁盘加密方案</li>
+</ul>
+<h2 id="1-应用加密方案"><a href="#1-应用加密方案" class="headerlink" title="1. 应用加密方案"></a>1. 应用加密方案</h2><p>在应用内实现数据库加密是一种较早的加密方案，使用灵活但实现难度相对较大。该方案是在业务代码层面通过加密 API 实现加密需求，可根据业务特点进行灵活地设计，敏感数据在应用层经过加密后，以密文的形式入库，检索数据也需要在应用内进行解密。</p>
+<p><strong>加密位置</strong>：应用程序内部</p>
+<p><strong>适用场景</strong>：适用于防超管权限、业务需要处理加密表或字段相对较少的场景。</p>
+<p><strong>优势</strong></p>
+<ul>
+<li><strong>防超管权限</strong>：系统管理员及 DBA 无法获取明文数据；</li>
+<li><strong>无外部组件依赖</strong>：通过业务自身即可实现数据加密的需求，无需依赖第三方厂商支持；</li>
+<li><strong>灵活地加密设计</strong>：可深度结合业务的特点进行定制化业务开发。</li>
+</ul>
+<p><strong>劣势</strong></p>
+<ul>
+<li><strong>业务改造难度较大</strong>：已有系统无法透明移植，续升级维护实施成本高、影响面大；</li>
+<li><strong>对开发人员要求较高</strong>：要求开发人员在理解业务的迁移，还需要精通加密技术方案，如密钥的合理使用，未来更新密钥的方案等问题；</li>
+<li><strong>数据库原生能力受限</strong>：同应用内加密方案相同，加密网关方案仍需面对不能对应用完全透明的问题，复杂的数据计算无法通过数据库原生能力来完成，如 &lt;、&gt;、like 和 between 等原生能力。</li>
+</ul>
+<h2 id="2-数据库加密网关方案"><a href="#2-数据库加密网关方案" class="headerlink" title="2. 数据库加密网关方案"></a>2. 数据库加密网关方案</h2><p>在部分材料中，数据库网关加密也被称为数据库前置加密。顾名思义，该方案是在数据库之前完成了数据加密。</p>
+<p>与应用内加密方案较大的区别是，加密网关方案以独立组件的形式提供加密服务，它可以是 JDBC 驱动形态，也可以是代理形态，研发人员不需要关注业务与加密之间的逻辑问题，更多精力可聚焦于业务的研发。</p>
+<p>数据库加密网关在对业务入侵较小的前提下，还具备灵活选择加密算法的特点，是一种较为通用的加密方案。若选择了 JDBC 驱动形态，则可对任意数据库进行数据加密。</p>
+<p><strong>加密位置</strong>：业务代码与数据库之间，JDBC 驱动层或代理层</p>
+<p><strong>适用场景</strong>：适用于防超管权限，同时业务侧及数据库侧不需关注加密实现的场景。</p>
+<p><strong>优势</strong></p>
+<ul>
+<li><strong>防超管权限</strong>：系统管理员及 DBA 无法获取明文数据；</li>
+<li><strong>加密粒度细</strong>：可在字段级别完成加密处理；</li>
+<li><strong>入侵少</strong>：业务系统几乎不改动或者少改动代码，即可通过加密网关实现数据加密的需求；</li>
+<li><strong>通用性强</strong>：驱动+代理两种接入端，可覆盖大部分加密场景需求，避免重复“造轮子”。</li>
+</ul>
+<p><strong>劣势</strong></p>
+<ul>
+<li><strong>数据库原生能力受限</strong>：同应用内加密方案相同，加密网关方案仍需面对不能对应用完全透明的问题，复杂的数据计算无法通过数据库原生能力来完成，如 &lt;、&gt;、like 和 between 等原生能力。</li>
+</ul>
+<h2 id="3-后置代理加密方案"><a href="#3-后置代理加密方案" class="headerlink" title="3. 后置代理加密方案"></a>3. 后置代理加密方案</h2><p>后置代理加密方案也被称为外挂加密，是一种透明的加密方案。第三方工具借助数据库原生能力实现加密需求，包括视图、触发器、扩展索引和外部调用。通过视图实现加密数据透明查询处理、通过触发器实现数据的加密插入和更新处理、通过数据库的扩展索引接口实现加密索引、通过外部接口调用实现独立于数据库的权限控制和加密算法，对应用完全透明。</p>
+<p><strong>加密位置</strong>：数据库外层</p>
+<p><strong>适用场景</strong>：适用于防超管权限、对权限进行细分、对应用透明且检索加密字段不多的场景，同时仍需考虑数据库的支持情况。</p>
+<p><strong>优势</strong>：</p>
+<ul>
+<li><strong>独立权限体系</strong>：具备更细粒度的权限管理，独立权限管理体系可防止超管用户越权检索敏感数据；</li>
+<li><strong>对应用透明</strong>：应用程序无需做调整，对应用完全透明；</li>
+<li><strong>加密粒度细</strong>：可在字段级别完成加密处理。</li>
+</ul>
+<p><strong>​劣势</strong>：</p>
+<ul>
+<li><strong>可选产品较少</strong>：需产品开放高级接口，数据库产品可选范围较小；</li>
+<li><strong>替换数据库难</strong>：由于该方案高度依赖数据库的原生能力，因此未来更换数据库较难；</li>
+<li><strong>性能损耗较高</strong>。</li>
+</ul>
+<h2 id="4-数据库-TDE-加密方案"><a href="#4-数据库-TDE-加密方案" class="headerlink" title="4. 数据库 TDE 加密方案"></a>4. 数据库 TDE 加密方案</h2><p>TDE（Transparent Data Encryption）即透明数据加密，是一种在数据库内部实现的加密方式，顾名思义，对业务和用户透明。数据文件中存储密文数据，加解密均在内存中完成，且不会增加数据文件的大小。</p>
+<p><strong>加密位置</strong>：数据库内核层</p>
+<p><strong>适用场景</strong>：使用于业务程序不能做修改的场景，在数据库产品能够支持 TDE 技术的前提下，该方案可覆盖多数加密需求的场景。</p>
+<p><strong>优势</strong>：</p>
+<ul>
+<li><strong>对应用透明</strong>：应用程序无需做调整，对应用完全透明；</li>
+<li><strong>自动管理密钥</strong>：用户无需关注密钥管理问题。</li>
+</ul>
+<p><strong>劣势</strong>：</p>
+<ul>
+<li><strong>超管权限不受限</strong>：无法有效限制系统管理员及 DBA；</li>
+<li><strong>加密算法受限</strong>：无法满足有国密算法要求的场景；</li>
+<li><strong>可选产品较少</strong>：支持透明加密的数据库产品有限。</li>
+</ul>
+<h2 id="5-文件加密方案"><a href="#5-文件加密方案" class="headerlink" title="5. 文件加密方案"></a>5. 文件加密方案</h2><p>在操作系统文件驱动层，将数据库的存储文件经过加密后存储到磁盘上。在数据存储文件被打开的时候进行解密，在数据落地后再进行加密，在具备基础加解密能力的同时，还能够根据操作系统用户或者访问文件的进程 ID 进行基本的访问权限控制。</p>
+<p><strong>加密位置</strong>：文件系统层</p>
+<p><strong>适用场景</strong>：适用于透明加密需求，同时对应用进程有绑定需求的场景，只有授权的“白名单”应用进程访问文件时，才能获得明文。</p>
+<p><strong>优势</strong>：</p>
+<ul>
+<li><strong>对应用透明</strong>：应用程序无需做调整，对应用完全透明；</li>
+<li><strong>加密粒度细</strong>：可在进程级别进行控制。</li>
+</ul>
+<p><strong>劣势</strong>：</p>
+<ul>
+<li><strong>超管权限不受限</strong>：无法有效限制系统管理员及 DBA；</li>
+<li><strong>加密粒度粗</strong>：无法实现字段级别的加密处理；</li>
+<li><strong>性能损耗较大</strong>。</li>
+</ul>
+<h2 id="6-磁盘加密方案"><a href="#6-磁盘加密方案" class="headerlink" title="6. 磁盘加密方案"></a>6. 磁盘加密方案</h2><p>指通过动态加解密技术，对磁盘或分区进行动态加解密的技术，可通过软件或硬件的方式进行加密。当数据库访问磁盘扇区的时候，对加密扇区再进行解密。这种方式对于数据库自身来说是透明的，数据库管理系统也感觉不到加密解密过程的存在。</p>
+<p><strong>加密位置</strong>：磁盘层</p>
+<p><strong>适用场景</strong>：全磁盘加密技术适用于磁盘上所有数据（包括操作系统）进行动态加解密的场景。</p>
+<p><strong>优势</strong>：</p>
+<ul>
+<li><strong>对应用透明</strong>：应用程序无需做调整，对应用完全透明；</li>
+<li><strong>性能损耗低</strong>：磁盘加密技术通过操作系统内核层实现，能够最大化减少加解密损耗。</li>
+</ul>
+<p><strong>劣势</strong>：</p>
+<ul>
+<li><strong>超管权限不受限</strong>：无法有效限制系统管理员及 DBA；</li>
+<li><strong>加密粒度粗</strong>：无法实现字段级别的加密处理。</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>为便于大家对比，下表对以上六种方案做了能力的比对。这里要特别说明的是，以下内容均为网络搜集整理，部分内容可能会存在偏差，欢迎纠错。</p>
+<table>
+<thead>
+<tr>
+<th align="center"></th>
+<th align="center">硬盘加密</th>
+<th align="center">文件加密</th>
+<th align="center">数据库 TDE 加密<br></th>
+<th align="center">数据库后置加密</th>
+<th align="center">数据库网关</th>
+<th align="center">应用加密</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">部署位置</td>
+<td align="center">数据库服务器</td>
+<td align="center">数据库服务器</td>
+<td align="center">数据库内</td>
+<td align="center">数据库外</td>
+<td align="center">数据库与应用之间</td>
+<td align="center">应用内</td>
+</tr>
+<tr>
+<td align="center">对业务透明</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center"><strong>否</strong></td>
+<td align="center"><strong>否</strong></td>
+</tr>
+<tr>
+<td align="center">防磁盘丢失</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+</tr>
+<tr>
+<td align="center">防超管权限</td>
+<td align="center"><strong>否</strong></td>
+<td align="center"><strong>否</strong></td>
+<td align="center"><strong>否</strong></td>
+<td align="center">是</td>
+<td align="center">是</td>
+<td align="center">是</td>
+</tr>
+<tr>
+<td align="center">加密粒度</td>
+<td align="center">硬盘&#x2F;卷</td>
+<td align="center">文件</td>
+<td align="center">表空间&#x2F;字段</td>
+<td align="center">字段</td>
+<td align="center">字段</td>
+<td align="center">文件&#x2F;字段</td>
+</tr>
+<tr>
+<td align="center">复杂计算</td>
+<td align="center">支持</td>
+<td align="center">支持</td>
+<td align="center">支持</td>
+<td align="center">支持</td>
+<td align="center">部分支持</td>
+<td align="center"><strong>不支持</strong></td>
+</tr>
+<tr>
+<td align="center">实施成本</td>
+<td align="center">低</td>
+<td align="center">低</td>
+<td align="center">低</td>
+<td align="center"><strong>高</strong></td>
+<td align="center">中</td>
+<td align="center"><strong>高</strong></td>
+</tr>
+<tr>
+<td align="center">性能损耗</td>
+<td align="center">低</td>
+<td align="center">中<br></td>
+<td align="center">低</td>
+<td align="center"><strong>高</strong></td>
+<td align="center">中</td>
+<td align="center">低</td>
+</tr>
+<tr>
+<td align="center">依赖厂商</td>
+<td align="center"><strong>是</strong></td>
+<td align="center"><strong>是</strong></td>
+<td align="center"><strong>是</strong></td>
+<td align="center"><strong>是</strong></td>
+<td align="center"><strong>是</strong></td>
+<td align="center">否</td>
+</tr>
+</tbody></table>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/LE8FFqaSVEwZVQ-57GZWEw">[1] 韩锋. 数据存储加密之方案与难点</a></p>
+<p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzkyNzE5MDUzMw==&mid=2247490496&idx=1&sn=82c49fef076f9786f8a2ec7baf2bf4a2">[2] 炼石网络CG. 一文读懂十种数据存储加密技术</a></p>
+<p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzA3MTQwNTQxMg==&mid=2650779068&idx=1&sn=02da7b93fd85597a84e29fb7a2572cf9">[3] 安华金和. 数据库加密技术的演进与对比</a></p>
+<p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzIyNDI3NzE3MQ==&mid=2650624325&idx=1&sn=8e794461f12ddd7ce34304015fbad194">[4] 中安威士. 关于数据库加密，你不能不知道的秘密（一）</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%95%B0%E6%8D%AE%E5%AE%89%E5%85%A8/" rel="tag"># 数据安全</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/08/17/%E6%B5%85%E8%B0%88%E4%B8%8E-DBA-%E6%81%AF%E6%81%AF%E7%9B%B8%E5%85%B3%E7%9A%84-Database-Plus-%E7%90%86%E5%BF%B5/" rel="prev" title="浅谈与 DBA 息息相关的 Database Plus 理念">
+      <i class="fa fa-chevron-left"></i> 浅谈与 DBA 息息相关的 Database Plus 理念
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/10/08/%E5%88%9D%E8%AF%86-GDPR%EF%BC%9A%E5%8F%B2%E4%B8%8A%E6%9C%80%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%95%B0%E6%8D%AE%E4%BF%9D%E6%8A%A4%E6%9D%A1%E4%BE%8B/" rel="next" title="初识 GDPR：史上最严格的数据保护条例">
+      初识 GDPR：史上最严格的数据保护条例 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8A%A0%E5%AF%86%E6%94%B9%E9%80%A0%E9%9D%A2%E4%B8%B4%E7%9A%84%E6%8C%91%E6%88%98"><span class="nav-number">1.</span> <span class="nav-text">加密改造面临的挑战</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%A1%E8%AE%A1%E5%90%88%E8%A7%84"><span class="nav-number">1.1.</span> <span class="nav-text">审计合规</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%94%B9%E9%80%A0%E6%88%90%E6%9C%AC"><span class="nav-number">1.2.</span> <span class="nav-text">改造成本</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%9A%E5%8A%A1%E5%AE%89%E5%85%A8%E6%80%A7"><span class="nav-number">1.3.</span> <span class="nav-text">业务安全性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%A7%E8%83%BD"><span class="nav-number">1.4.</span> <span class="nav-text">性能</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B8%B8%E8%A7%81%E7%9A%84-6-%E7%A7%8D%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88"><span class="nav-number">2.</span> <span class="nav-text">常见的 6 种数据存储加密方案</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E5%BA%94%E7%94%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88"><span class="nav-number">2.1.</span> <span class="nav-text">1. 应用加密方案</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%95%B0%E6%8D%AE%E5%BA%93%E5%8A%A0%E5%AF%86%E7%BD%91%E5%85%B3%E6%96%B9%E6%A1%88"><span class="nav-number">2.2.</span> <span class="nav-text">2. 数据库加密网关方案</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E5%90%8E%E7%BD%AE%E4%BB%A3%E7%90%86%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88"><span class="nav-number">2.3.</span> <span class="nav-text">3. 后置代理加密方案</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E6%95%B0%E6%8D%AE%E5%BA%93-TDE-%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88"><span class="nav-number">2.4.</span> <span class="nav-text">4. 数据库 TDE 加密方案</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E6%96%87%E4%BB%B6%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88"><span class="nav-number">2.5.</span> <span class="nav-text">5. 文件加密方案</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E7%A3%81%E7%9B%98%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88"><span class="nav-number">2.6.</span> <span class="nav-text">6. 磁盘加密方案</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">4.</span> <span class="nav-text">参考</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="代野"
+      src="/images/photo.jpg">
+  <p class="site-author-name" itemprop="name">代野</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="mailto:daiyex@outlook.com" title="E-Mail → mailto:daiyex@outlook.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+  <div class="beian"><a href="https://beian.miit.gov.cn/" rel="noopener" target="_blank">京ICP备18010339号-3 </a>
+  </div>
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">代野</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
