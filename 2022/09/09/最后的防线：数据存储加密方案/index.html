@@ -17,26 +17,26 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":"flat","style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+    var CONFIG = {"hostname":"daiyex.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":"flat","style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta name="description" content="数字化时代，数据安全与隐私泄露事件频发，同时，安全事件涉及面较广、影响力巨大，数据安全威胁问题愈发凸显。 随着数据安全在国家安全体系中的重要地位进一步明确，数据安全相关法律体系也不断在完善，如《数据安全法》《个人信息保护法》《网络安全法》和《网络数据安全管理条例（征求意见稿）》。 防范数据安全风险事件的发生、保障业务运营以及企业自身的发展需要都成为了企业在数据安全建设中的关注焦点。在信通院发布的">
 <meta property="og:type" content="article">
 <meta property="og:title" content="最后的防线：数据存储加密方案">
-<meta property="og:url" content="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/index.html">
+<meta property="og:url" content="https://daiyex.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/index.html">
 <meta property="og:site_name" content="代野博客">
 <meta property="og:description" content="数字化时代，数据安全与隐私泄露事件频发，同时，安全事件涉及面较广、影响力巨大，数据安全威胁问题愈发凸显。 随着数据安全在国家安全体系中的重要地位进一步明确，数据安全相关法律体系也不断在完善，如《数据安全法》《个人信息保护法》《网络安全法》和《网络数据安全管理条例（征求意见稿）》。 防范数据安全风险事件的发生、保障业务运营以及企业自身的发展需要都成为了企业在数据安全建设中的关注焦点。在信通院发布的">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-0.png">
-<meta property="og:image" content="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-1.png">
+<meta property="og:image" content="https://daiyex.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-0.png">
+<meta property="og:image" content="https://daiyex.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-1.png">
 <meta property="article:published_time" content="2022-09-08T16:07:16.000Z">
-<meta property="article:modified_time" content="2022-09-09T09:40:35.486Z">
+<meta property="article:modified_time" content="2022-09-09T09:40:36.000Z">
 <meta property="article:author" content="代野">
 <meta property="article:tag" content="数据安全">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-0.png">
+<meta name="twitter:image" content="https://daiyex.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/20220909-1-0.png">
 
-<link rel="canonical" href="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/">
+<link rel="canonical" href="https://daiyex.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/">
 
 
 <script id="page-configurations">
@@ -192,7 +192,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/">
+    <link itemprop="mainEntityOfPage" href="https://daiyex.com/2022/09/09/%E6%9C%80%E5%90%8E%E7%9A%84%E9%98%B2%E7%BA%BF%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E5%8A%A0%E5%AF%86%E6%96%B9%E6%A1%88/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/photo.jpg">
@@ -216,7 +216,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2022-09-09 00:07:16 / 修改时间：17:40:35" itemprop="dateCreated datePublished" datetime="2022-09-09T00:07:16+08:00">2022-09-09</time>
+              <time title="创建时间：2022-09-09 00:07:16 / 修改时间：17:40:36" itemprop="dateCreated datePublished" datetime="2022-09-09T00:07:16+08:00">2022-09-09</time>
             </span>
 
           
@@ -557,7 +557,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-count">10</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -598,7 +598,7 @@
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2022</span>
+  <span itemprop="copyrightYear">2023</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
