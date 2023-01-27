@@ -390,11 +390,6 @@
       </tags>
   </entry>
   <entry>
-    <title>test0124</title>
-    <url>/2023/01/24/test0124/</url>
-    <content><![CDATA[]]></content>
-  </entry>
-  <entry>
     <title>初识 MySQL HeatWave</title>
     <url>/2022/11/26/%E5%88%9D%E8%AF%86-MySQL-HeatWave/</url>
     <content><![CDATA[<p>MySQL 作为全球最欢迎的数据库，已在交易场景叱咤风云多年。在 2020 年底，OCI（Oracle Cloud Infrastructure）推出了一个黑科技插件，它弥补了 MySQL 在分析场景的短板，Oracle 官方称它比 Aurora 快 1400 倍，比 Redshift 快 6.5 倍，而且还能以二分之一的成本完成这些工作，它就是 MySQL HeatWave。</p>
@@ -986,6 +981,15 @@
 ]]></content>
       <tags>
         <tag>ShardingSphere</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>相册｜单板走起</title>
+    <url>/2023/01/26/%E7%9B%B8%E5%86%8C-%E5%8D%95%E6%9D%BF%E8%B5%B0%E8%B5%B7/</url>
+    <content><![CDATA[<p><img src="/2023/01/26/%E7%9B%B8%E5%86%8C-%E5%8D%95%E6%9D%BF%E8%B5%B0%E8%B5%B7/20230126-%E5%8D%95%E6%9D%BF.jpg" alt="20230126-单板"></p>
+]]></content>
+      <tags>
+        <tag>相册</tag>
       </tags>
   </entry>
 </search>
